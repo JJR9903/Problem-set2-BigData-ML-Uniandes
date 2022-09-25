@@ -31,7 +31,7 @@ test_hogares <- readRDS("data/test_hogares_full.Rds")
 y_train<-train_hogares[,'Ingtotugarr']
 p_train<-train_hogares[,'Pobre']
 x<-names(test_hogares)
-for (i in c('P5000','P5100','P5130','P5140','Npersug','Li','Lp','Fex_c','Fex_depto','Ingtot_hogar','JH_Ing')){ x=x[ !x == i]}
+for (i in c('P5000','Npersug','Li','Lp','Fex_c','Fex_depto','Ingtot_hogar','JH_Ing')){ x=x[ !x == i]}
 x_train<-train_hogares[,x]
 x_test<-test_hogares[,x]
 
