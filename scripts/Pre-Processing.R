@@ -33,7 +33,7 @@ settingVariables_Personas<- function(personas){
   factor_variables_personas<-c('P6020','P6050','P6090','P6100','P6210','P6240','P6585s1','P6585s2','P6585s3','P6585s4','P6920','P7040','P7090','P7310','P7422','P7495','P7500s3','P7505','P7510s1','P7510s2','P7510s3')        
   personas[,factor_variables_personas] <- lapply(personas[,factor_variables_personas] , factor)
   
-  dummy_variables_personas<-c('P6020','P6090','P6585s1','P6585s2','P6585s3','P6585s4','P6920','P7040','P7090','P7310','P7422','P7495','P7500s3','P7505','P7510s1','P7510s2','P7510s3')
+  dummy_variables_personas<-c('P6020','P6090','P6585s1','P6585s2','P6585s3','P6585s4','P7040','P7090','P7310','P7422','P7495','P7500s3','P7505','P7510s1','P7510s2','P7510s3')
   personas[,dummy_variables_personas] <-sapply(personas[,dummy_variables_personas],  function(x) replace(x, x=="9", NA))
   personas[,dummy_variables_personas] <-sapply(personas[,dummy_variables_personas],  function(x) replace(x, x=="2", '0'))
   personas[,dummy_variables_personas] <- lapply(personas[,dummy_variables_personas] , as.numeric)
@@ -43,7 +43,7 @@ settingVariables_Personas<- function(personas){
   
   factor_variables_personas<-c('P6020','P6210')        
   personas<-dummy_cols(personas,factor_variables_personas,remove_most_frequent_dummy=F,ignore_na=T,split="_",remove_selected_columns=FALSE)
-  factor_variables_personas<-c('P6050','P6100','P6240')        
+  factor_variables_personas<-c('P6050','P6100','P6240','P6920')        
   personas<-dummy_cols(personas,factor_variables_personas,remove_most_frequent_dummy=F,ignore_na=T,split="_",remove_selected_columns=TRUE)
   
   return(personas)
@@ -64,7 +64,8 @@ settingVariables_Hogares<-function(personas,Hogares){
               Estudiantes   = sum(P6240_3,na.rm = TRUE),
               Subsidios     = ifelse(any(P6585,na.rm = TRUE),1,0),
               HorasTrabajo  = sum(P6800,na.rm = TRUE),
-              CotizaPension = ifelse(any(P6920,na.rm = TRUE),1,0),
+              CotizaPension = ifelse(any(P6920_1,na.rm = TRUE),1,0),
+              Pensionado = ifelse(any(P6920_3,na.rm = TRUE),1,0),
               OtroTrabajo   = sum(P7040,na.rm = TRUE),
               DeseaTrabajarMas   = sum(P7090,na.rm = TRUE),
               PrimerTrabajo = sum(P7310,na.rm = TRUE),
@@ -90,7 +91,8 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_NEduc         = P6210,
               JH_Trabaja       = ifelse(P6240_1==1,1,0),
               JH_HorasTrabajo  = ifelse(is.na(P6800),0,P6800),
-              JH_CotizaPension = ifelse(is.na(P6920),0,P6920),
+              JH_CotizaPension = ifelse(is.na(P6920_1),0,P6920_1),
+              JH_Pensionado    = ifelse(is.na(P6920_3),0,P6920_3),
               JH_OtroTrabajo   = ifelse(is.na(P7040),0,P7040),
               JH_DeseaTrabajarMas   = ifelse(is.na(P7090),0,P7090),
               JH_PrimerTrabajo = ifelse(is.na(P7310),0,P7310),
@@ -100,7 +102,6 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_Ina           = ifelse(is.na(Ina),0,Ina)
               
     )
-  ## REVISAR PENSIONADOS
   
   
   
@@ -113,7 +114,16 @@ settingVariables_Hogares<-function(personas,Hogares){
   
   factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
-  Hogares<-dummy_cols(Hogares,factor_variables_Hogares,remove_first_dummy = T,remove_most_frequent_dummy=F,ignore_na=T,split="_",remove_selected_columns=TRUE)
+
+  #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros)
+  Hogares$P5100[is.na(Hogares$P5100)]<-0
+  Hogares$P5130[is.na(Hogares$P5130)]<-0
+  Hogares$P5140[is.na(Hogares$P5140)]<-0
+  
+  #estandarizar 
+  estandarizar<-c('P5100','P5130','P5140','P5140','P5130','P5100','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
+  Hogares<- Hogares %>%           
+    mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
   return(Hogares)
 }
@@ -122,49 +132,31 @@ settingVariables_Hogares<-function(personas,Hogares){
 ####IMPORTAR BASES 
 train_hogares <- readRDS("stores/data/train_hogares.Rds")
 train_personas <- readRDS("stores/data/train_personas.Rds")
-test_hogares <- readRDS("stores/data/test_hogares.Rds")
-test_personas <- readRDS("stores/data/test_personas.Rds")
+#test_hogares <- readRDS("stores/data/test_hogares.Rds")
+#test_personas <- readRDS("stores/data/test_personas.Rds")
 
 ###### PRE PROCESAMIENTO #### 
 
 ## Personas ##
 train_personas<-settingVariables_Personas(train_personas)
-test_personas<-settingVariables_Personas(test_personas)
+#test_personas<-settingVariables_Personas(test_personas)
 
 ###### Merge con Hogares#### 
 train_hogares<-settingVariables_Hogares(train_personas,train_hogares)
-test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
+#test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
 
-
-
-
-
-
-
-### estandarizar variables ####
-
-#estandarizar 
-estandarizar<-c('P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
-train_hogares<- train_hogares %>%           
-  mutate_at(estandarizar, ~(scale(.) %>% as.vector))
-test_hogares<- test_hogares %>%           
-  mutate_at(estandarizar, ~(scale(.) %>% as.vector))
 
 # logaritmos
-train_hogares$Ingtot_hogar<-log(train_hogares$Ingtot_hogar)
-train_hogares$Ingtot_hogar<-replace(train_hogares$Ingtot_hogar, is.na(train_hogares$Ingtot_hogar), 0)
-train_hogares$Ingtotug<-log(train_hogares$Ingtotug)
-train_hogares$Ingtotug<-replace(train_hogares$Ingtotug, is.na(train_hogares$Ingtotug), 0)
+#train_hogares$Ingtot_hogar<-log(train_hogares$Ingtot_hogar)
+#train_hogares$Ingtot_hogar<-replace(train_hogares$Ingtot_hogar, is.na(train_hogares$Ingtot_hogar), 0)
+#train_hogares$Ingtotug<-log(train_hogares$Ingtotug)
+#train_hogares$Ingtotug<-replace(train_hogares$Ingtotug, is.na(train_hogares$Ingtotug), 0)
 
-train_hogares$P5100<-log(train_hogares$P5100)
-train_hogares$P5100<-replace(train_hogares$P5100, is.na(train_hogares$P5100), 0)
+#train_hogares$Ingtotugarr<-log(train_hogares$Ingtotugarr)
+#train_hogares$Ingtotugarr<-replace(train_hogares$Ingtotugarr, is.na(train_hogares$Ingtotugarr), 0)
 
-train_hogares$P5130<-log(train_hogares$P5130)
-train_hogares$P5130<-replace(train_hogares$P5130, is.na(train_hogares$P5130), 0)
-
-train_hogares$P5140<-log(train_hogares$P5140)
-train_hogares$P5140<-replace(train_hogares$P5140, is.na(train_hogares$P5140), 0)
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
-saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
+#saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
+
 

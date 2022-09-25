@@ -28,12 +28,22 @@ pacman:: p_load(rvest, tidyverse, skimr, stargazer,cowplot,car,boot,caret, here,
 train_hogares <- readRDS("data/train_hogares_full.Rds")
 test_hogares <- readRDS("data/test_hogares_full.Rds")
 
-y_train<-train_hogares[,'Ingtotugarr']
-p_train<-train_hogares[,'Pobre']
-x<-names(test_hogares)
-for (i in c('P5000','Npersug','Li','Lp','Fex_c','Fex_depto','Ingtot_hogar','JH_Ing')){ x=x[ !x == i]}
-x_train<-train_hogares[,x]
-x_test<-test_hogares[,x]
+set.seed(1234)
+
+train<-model.matrix(object = ~ Ingtotugarr + Clase + Dominio + P5010 + P5090 + P5100 + P5130 + P5140 + 
+                      Nper + Depto + Hombres + Mujeres + Pareja + Hijos + Nietos + 
+                      EdadPromedio + SSalud + Trabajan + Estudiantes + Subsidios + 
+                      HorasTrabajo + CotizaPension + OtroTrabajo + DeseaTrabajarMas + 
+                      PrimerTrabajo + DesReciente + Ingresos_AlquilerPensiones + 
+                      Ingresos_Paternidad + OtrosIngresos + AyudasEco + Pet + Oc + 
+                      Des + Ina + Pea + JH_Ing + JH_Mujer + JH_Edad + JH_RSS_S + 
+                      JH_NEduc + JH_Trabaja + JH_HorasTrabajo + JH_CotizaPension + 
+                      JH_OtroTrabajo + JH_DeseaTrabajarMas + JH_PrimerTrabajo + 
+                      JH_DesReciente + JH_Oc + JH_Des + JH_Ina,data=train_hogares)%>%as.data.frame()
+
+y_train<-train[,'Ingtotugarr']
+x_train<-train[,-c(1,2)]
+
 
 
 ###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
@@ -55,6 +65,8 @@ x_test<-test_hogares[,x]
 ########### PREDICCIÓN INGRESO ##########
 
 ##### LASSO #####
+Lasso<-glmnet(x=x_train,y=y_train,alpha=1,nlambda=100,standarize=FALSE,trace.it = TRUE)
+
 
 ##### RIDGE #####
 
