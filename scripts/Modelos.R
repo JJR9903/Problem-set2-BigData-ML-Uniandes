@@ -32,24 +32,55 @@ pacman:: p_load(tidyverse,skimr,stargazer,fastDummies,caret,tidymodels,glmnet,pa
 train_hogares <- readRDS("stores/train_hogares_full.Rds")
 #test_hogares <- readRDS("stores/test_hogares_full.Rds")
 
-set.seed(1234)
+train_hogares <- readRDS(paste0(getwd(),"/stores/train_hogares_full.Rds"))
+test_hogares <- readRDS(paste0(getwd(),"/stores/test_hogares_full.Rds"))
+
+y_train<-train_hogares[,'Ingtotugarr']
+p_train<-train_hogares[,'Pobre']
+x<-names(test_hogares)
+for (i in c('P5000','Npersug','Li','Lp','Fex_c','Fex_depto','Ingtot_hogar','JH_Ing')){ x=x[ !x == i]}
+x_train<-train_hogares[,x]
+x_test<-test_hogares[,x]
 
 
-train<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug + Clase  + Dominio + P5010 + P5090 + P5100 + P5130 + P5140 + 
-                      Nper + Depto + Hombres + Mujeres + Pareja + Hijos + Nietos + 
-                      EdadPromedio + SSalud + Trabajan + Estudiantes + Subsidios + 
-                      HorasTrabajo + CotizaPension + OtroTrabajo + DeseaTrabajarMas + 
-                      PrimerTrabajo + DesReciente + Ingresos_AlquilerPensiones + 
-                      Ingresos_Paternidad + OtrosIngresos + AyudasEco + Pet + Oc + 
-                      Des + Ina + Pea + JH_Ing + JH_Mujer + JH_Edad + JH_RSS_S + 
-                      JH_NEduc + JH_Trabaja + JH_HorasTrabajo + JH_CotizaPension + 
-                      JH_OtroTrabajo + JH_DeseaTrabajarMas + JH_PrimerTrabajo + 
-                      JH_DesReciente + JH_Oc + JH_Des + JH_Ina,data=train_hogares)
-
-#y_train<-train[,'Ingtotugarr']
-#x_train<-train[,-c(1:5)]
+###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
+prop.table(table(train_hogares$Pobre))
+ ## Se aprecia que s�lo el 20% de la base es pobre
 
 
+#Se separa el sample de train en dos
+smp_size <- floor(0.7*nrow(train_hogares))
+set.seed(666)
+train_ind <- sample(1:nrow(train_hogares), size = smp_size)
+
+train <- train_hogares[train_ind, ]
+test <- train_hogares[-train_ind, ]
+
+
+
+##OverSample
+train_hogares$Pobre<- factor(train_hogares$Pobre)
+train_h2 <- recipe(Pobre ~ P5000+P5010+SSalud+Trabajan+Estudiantes+CotizaPension+DeseaTrabajarMas+AyudasEco, data = train_hogares) %>%
+  themis::step_smote(Pobre, over_ratio = 1) %>%
+  prep() %>%
+  bake(new_data = NULL)
+#Corroboramos que ahora la mitad de la muestra sea pobre
+prop.table(table(train_h2$Pobre))
+nrow(train_h2)
+nrow(train_hogares)
+
+
+##UnderSample
+train_h3 <- recipe(Pobre ~ P5000+P5010+SSalud+Trabajan+Estudiantes+CotizaPension+DeseaTrabajarMas+AyudasEco, data = train_hogares) %>%
+  themis::step_downsample(Pobre) %>%
+  prep() %>%
+  bake(new_data = NULL)
+#Corroboramos que ahora la mitad de la muestra sea pobre
+prop.table(table(train_h3$Pobre))
+nrow(train_h3)
+nrow(train_hogares)
+
+###################### ENTRENAMIENTO DE LOS MODELOS ############################
 
 ###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
 train<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug + Clase  + Dominio + P5010 + P5090 + P5100 + P5130 + P5140 + 
@@ -78,9 +109,21 @@ FPR_FNR_C <- function (data, lev = NULL, model = NULL){
   out
 }
 
+##Opti
+thresholds <- seq(0.1, 0.9, length.out = 100)
+for (t in thresholds) {
+  y_pred_t <- as.numeric(probs_outsample1 > t)
+  f1_t <- F1_Score(y_true = test$infielTRUE, y_pred = y_pred_t,
+                   positive = 1)
+  fila <- data.frame(t = t, F1 = f1_t)
+  opt_t <- bind_rows(opt_t, fila)
+}
 
+mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
 
-###################### ENTRENAMIENTO DE LOS MODELOS ############################
+lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] # 948
+lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] # 948
+lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] # 948
 
 ########### PREDICCIÓN INGRESO ##########
 model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
@@ -236,6 +279,16 @@ Lasso <-train(model_Ing,data=train,trControl = trainControl(method = "cv", numbe
 Lasso[["bestTune"]][['alpha']]
 Lasso[["bestTune"]][['lambda']]
 ##### RANDOM FOREST #####
+#Hay que definir Ctrl
+Ctrl<-trainControl(method="CV")
+set.seed(1410)
+forest <- train(Pobre~ SSalud+Subsidios,+CotizaPension+P5010, data = train_hogares,
+  method = "rf",
+  trControl = Ctrl,
+  family = "binomial",
+  metric="Sens"
+  #preProcess = c("center", "scale")
+)
 
 ##### RANDOM FOREST BAGGING #####
 
