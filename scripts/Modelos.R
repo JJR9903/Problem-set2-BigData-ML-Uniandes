@@ -26,21 +26,16 @@ dir_set <- function(){
 
 dir_set()
 
-pacman:: p_load(tidyverse,skimr,stargazer,fastDummies,caret,tidymodels,glmnet,parallel,doParallel,tsutils,glmnetUtils)
+pacman:: p_load(tidyverse,skimr,stargazer,fastDummies,caret,tidymodels,glmnet,parallel,doParallel,tsutils,glmnetUtils,MLmetrics, themis)
 
 
 train_hogares <- readRDS("stores/train_hogares_full.Rds")
 #test_hogares <- readRDS("stores/test_hogares_full.Rds")
 
-train_hogares <- readRDS(paste0(getwd(),"/stores/train_hogares_full.Rds"))
-test_hogares <- readRDS(paste0(getwd(),"/stores/test_hogares_full.Rds"))
-
-y_train<-train_hogares[,'Ingtotugarr']
-p_train<-train_hogares[,'Pobre']
-x<-names(test_hogares)
-for (i in c('P5000','Npersug','Li','Lp','Fex_c','Fex_depto','Ingtot_hogar','JH_Ing')){ x=x[ !x == i]}
-x_train<-train_hogares[,x]
-x_test<-test_hogares[,x]
+#train_hogares <- readRDS(paste0(getwd(),"/stores/train_hogares_full.Rds"))
+#test_hogares <- readRDS(paste0(getwd(),"/stores/test_hogares_full.Rds"))
+#y_train<-train_hogares[,'Ingtotugarr']
+#p_train<-train_hogares[,'Pobre']
 
 
 ###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
@@ -80,6 +75,18 @@ prop.table(table(train_h3$Pobre))
 nrow(train_h3)
 nrow(train_hogares)
 
+##Opti
+thresholds <- seq(0.1, 0.9, length.out = 100)
+for (t in thresholds) {
+  y_pred_t <- as.numeric(probs_outsample1 > t)
+  f1_t <- F1_Score(y_true = test$infielTRUE, y_pred = y_pred_t,
+                   positive = 1)
+  fila <- data.frame(t = t, F1 = f1_t)
+  opt_t <- bind_rows(opt_t, fila)
+}
+
+mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
+
 ###################### ENTRENAMIENTO DE LOS MODELOS ############################
 
 ###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
@@ -109,21 +116,6 @@ FPR_FNR_C <- function (data, lev = NULL, model = NULL){
   out
 }
 
-##Opti
-thresholds <- seq(0.1, 0.9, length.out = 100)
-for (t in thresholds) {
-  y_pred_t <- as.numeric(probs_outsample1 > t)
-  f1_t <- F1_Score(y_true = test$infielTRUE, y_pred = y_pred_t,
-                   positive = 1)
-  fila <- data.frame(t = t, F1 = f1_t)
-  opt_t <- bind_rows(opt_t, fila)
-}
-
-mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
-
-lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] # 948
-lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] # 948
-lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] # 948
 
 ########### PREDICCIÓN INGRESO ##########
 model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
@@ -171,6 +163,8 @@ y_hat_l<-y_hat_lasso%>%
 lambda_mse<-y_hat_l[which.min(y_hat_l$MSE),1] # 948
 lambda_rmse<-y_hat_l[which.min(y_hat_l$RMSE),1] # 948
 lambda_fp_fn_r<-y_hat_l[which.min(y_hat_l$FPR_FNR_C),1] # 948
+HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,MSE=lambda_mse,RMSE=lambda_rmse)
+stargazer(HyperP,type="text",summary=F,out = "views/LassoReg_HyperP.txt")
 
 Lasso_mse<-min(y_hat_l$MSE)
 lasso_rmse<-min(y_hat_l$RMSE)
@@ -207,6 +201,8 @@ y_hat_R<-y_hat_Ridge%>%
 lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] # 948
 lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] # 948
 lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] # 948
+HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,MSE=lambda_mse,RMSE=lambda_rmse)
+stargazer(HyperP,type="text",summary=F,out = "views/LassoReg_HyperP.txt")
 
 ridge_mse<-min(y_hat_R$MSE)
 ridge_rmse<-min(y_hat_R$RMSE)

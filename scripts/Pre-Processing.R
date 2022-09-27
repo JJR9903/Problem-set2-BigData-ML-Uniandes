@@ -23,7 +23,11 @@ dir_set <- function(){
 
 dir_set()
 
-pacman:: p_load(tidyverse,skimr,fastDummies,labelled)
+pacman:: p_load(tidyverse,skimr,fastDummies,labelled,parallel,doParallel)
+
+n_cores<-detectCores()
+cl <- makePSOCKcluster(n_cores - 1) 
+registerDoParallel(cl)
 
 ######## FUNCIONES ####
 NotInTest<-function(y){ tryCatch( error = function(cnd) { NA }, y ) }
@@ -115,7 +119,15 @@ settingVariables_Hogares<-function(personas,Hogares){
   factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
 
-  #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros)
+  Hogares$Lp=Hogares$Lp*Hogares$Npersug
+  
+  Hogares$Lp<-log(Hogares$Lp)
+  
+  Hogares$P5100<-log(Hogares$P5100)
+  Hogares$P5130<-log(Hogares$P5130)
+  Hogares$P5140<-log(Hogares$P5130)
+  #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros o para los que con el log=-inf)
+  Hogares$Lp[is.na(Hogares$Lp)]<-0
   Hogares$P5100[is.na(Hogares$P5100)]<-0
   Hogares$P5130[is.na(Hogares$P5130)]<-0
   Hogares$P5140[is.na(Hogares$P5140)]<-0
@@ -125,7 +137,7 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
-  Hogares$Lp=Hogares$Lp*Hogares$Npersug
+  
   
   return(Hogares)
 }
@@ -144,9 +156,13 @@ test_personas<-settingVariables_Personas(test_personas)
 
 ###### Merge con Hogares#### 
 train_hogares<-settingVariables_Hogares(train_personas,train_hogares)
+train_hogares$Ingtotugarr=log(train_hogares$Ingtotugarr)
+train_hogares$Ingtotugarr[is.na(train_hogares$Ingtotugarr)]<-0
 test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
 saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
+
+stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
