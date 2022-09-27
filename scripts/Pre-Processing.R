@@ -23,7 +23,7 @@ dir_set <- function(){
 
 dir_set()
 
-pacman:: p_load(rvest, tidyverse, skimr, stargazer,cowplot,car,boot,caret, here,tidyverse,fastDummies)
+pacman:: p_load(tidyverse,skimr,fastDummies,labelled)
 
 ######## FUNCIONES ####
 NotInTest<-function(y){ tryCatch( error = function(cnd) { NA }, y ) }
@@ -125,38 +125,28 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
+  Hogares$Lp=Hogares$Lp*Hogares$Npersug
+  
   return(Hogares)
 }
 
 
 ####IMPORTAR BASES 
-train_hogares <- readRDS("stores/data/train_hogares.Rds")
-train_personas <- readRDS("stores/data/train_personas.Rds")
-#test_hogares <- readRDS("stores/data/test_hogares.Rds")
-#test_personas <- readRDS("stores/data/test_personas.Rds")
-
+train_hogares <- remove_val_labels(readRDS("stores/data/train_hogares.Rds"))
+train_personas <- remove_val_labels(readRDS("stores/data/train_personas.Rds"))
+test_hogares <- remove_val_labels(readRDS("stores/data/test_hogares.Rds"))
+test_personas <- remove_val_labels(readRDS("stores/data/test_personas.Rds"))
 ###### PRE PROCESAMIENTO #### 
 
 ## Personas ##
 train_personas<-settingVariables_Personas(train_personas)
-#test_personas<-settingVariables_Personas(test_personas)
+test_personas<-settingVariables_Personas(test_personas)
 
 ###### Merge con Hogares#### 
 train_hogares<-settingVariables_Hogares(train_personas,train_hogares)
-#test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
-
-
-# logaritmos
-#train_hogares$Ingtot_hogar<-log(train_hogares$Ingtot_hogar)
-#train_hogares$Ingtot_hogar<-replace(train_hogares$Ingtot_hogar, is.na(train_hogares$Ingtot_hogar), 0)
-#train_hogares$Ingtotug<-log(train_hogares$Ingtotug)
-#train_hogares$Ingtotug<-replace(train_hogares$Ingtotug, is.na(train_hogares$Ingtotug), 0)
-
-#train_hogares$Ingtotugarr<-log(train_hogares$Ingtotugarr)
-#train_hogares$Ingtotugarr<-replace(train_hogares$Ingtotugarr, is.na(train_hogares$Ingtotugarr), 0)
-
+test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
-#saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
+saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 
-
+rm(train_hogares,test_hogares,train_personas,test_personas)
