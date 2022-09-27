@@ -90,7 +90,8 @@ settingVariables_Hogares<-function(personas,Hogares){
     group_by(id) %>% 
     summarize(JH_Ing           = NotInTest(mean(Ingtot,na.rm = TRUE)),
               JH_Mujer         = mean(P6020_0,na.rm = TRUE),
-              JH_Edad          = mean(P6040,na.rm = TRUE),
+              JH_Edad          = mean(P6040,na.rm = TRUE), ##jefe hogar 
+              JH_Edad          = mean(P6040^2,na.rm = TRUE),
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
               JH_Trabaja       = ifelse(P6240_1==1,1,0),
@@ -103,10 +104,10 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_DesReciente   = ifelse(is.na(P7422),0,P7422),
               JH_Oc            = ifelse(is.na(Oc),0,Oc),
               JH_Des           = ifelse(is.na(Des),0,Des),
-              JH_Ina           = ifelse(is.na(Ina),0,Ina)
+              JH_Ina           = ifelse(is.na(Ina),0,Ina),
+              JH_sistemaSalud  = p6090*p6010
               
     )
-  
   
   
   Hogares<- left_join(Hogares, sum_Hogar,by="id")
@@ -124,10 +125,7 @@ factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')
   Hogares$Lp=Hogares$Lp*Hogares$Npersug
   
   Hogares$Lp<-log(Hogares$Lp)
-  
-  Hogares$P5100<-log(Hogares$P5100)
-  Hogares$P5130<-log(Hogares$P5130)
-  Hogares$P5140<-log(Hogares$P5130)
+  Hogares$Lp[Hogares$Lp==-Inf]<-0
   
   #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros o para los que con el log=-inf)
   Hogares$Lp[is.na(Hogares$Lp)]<-0
@@ -141,13 +139,16 @@ factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
 
   #ln variables 
-  Hogares$P5100<-log(Hogares$P5100)
+  Hogares$P5100<-log(Hogares$P5100) 
   Hogares$P5130<-log(Hogares$P5130)
   Hogares$P5140<-log(Hogares$P5140)
   
-  #variables según literatura 
-# revisar la construcción de edad (edad promedio) 
+  Hogares$P5100[Hogares$P5100==-Inf]<-0
+  Hogares$P5130[Hogares$P5130==-Inf]<-0
+  Hogares$P5140[Hogares$P5140==-Inf]<-0
   
+ 
+
   return(Hogares)
 }
 

@@ -30,7 +30,7 @@ pacman:: p_load(tidyverse,skimr,stargazer,fastDummies,caret,tidymodels,glmnet,pa
 
 
 train_hogares <- readRDS("stores/train_hogares_full.Rds")
-#test_hogares <- readRDS("stores/test_hogares_full.Rds")
+test_hogares <- readRDS("stores/test_hogares_full.Rds")
 
 #train_hogares <- readRDS(paste0(getwd(),"/stores/train_hogares_full.Rds"))
 #test_hogares <- readRDS(paste0(getwd(),"/stores/test_hogares_full.Rds"))
