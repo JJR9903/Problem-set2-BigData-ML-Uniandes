@@ -124,6 +124,16 @@ mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
 ##### LOGIT-LASSO #####
 
 ##### RANDOM FOREST #####
+#Hay que definir Ctrl
+Ctrl<-trainControl(method="CV")
+set.seed(1410)
+forest <- train(Pobre~ SSalud+Subsidios,+CotizaPension+P5010, data = train_hogares,
+  method = "rf",
+  trControl = Ctrl,
+  family = "binomial",
+  metric="Sens"
+  #preProcess = c("center", "scale")
+)
 
 ##### RANDOM FOREST BAGGING #####
 
