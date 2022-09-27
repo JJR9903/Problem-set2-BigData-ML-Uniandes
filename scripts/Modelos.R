@@ -264,8 +264,22 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_EN,alphas_EN,en_cv,EN_CV,EN_mse
 ##### REGRESSION TREES RANDOM FOREST #####
 
 ##### K-N-N  #####
+set.seed(210422) 
+test <- sample(x=1:32, size=10) ## generar observaciones aleatorias
+x <- scale(db[,-9]) ## reescalar variables (para calcular distancias)
+apply(x,2,sd) ## verificar
 
+k1 = knn(train=x[-test,], ## base de entrenamiento
+         test=x[test,],   ## base de testeo
+         cl=db$am[-test], ## outcome
+         k=1)        ## vecinos 
 
+tibble(db$am[test],k1)
+
+##Falta sacar meetricas 
+
+##Matriz de confusión 
+confusionMatrix(data=k1 , reference=db$am[test] , mode="sens_spec" , positive="manual (1)")
 ########### PREDICCIÓN POBREZA ##########
 #Stratified Cross Validation
 ##### LOGIT #####

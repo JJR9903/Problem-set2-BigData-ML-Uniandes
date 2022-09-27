@@ -118,6 +118,8 @@ settingVariables_Hogares<-function(personas,Hogares){
   
   factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
+factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
+  Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
 
   Hogares$Lp=Hogares$Lp*Hogares$Npersug
   
@@ -126,6 +128,7 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares$P5100<-log(Hogares$P5100)
   Hogares$P5130<-log(Hogares$P5130)
   Hogares$P5140<-log(Hogares$P5130)
+  
   #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros o para los que con el log=-inf)
   Hogares$Lp[is.na(Hogares$Lp)]<-0
   Hogares$P5100[is.na(Hogares$P5100)]<-0
@@ -136,8 +139,14 @@ settingVariables_Hogares<-function(personas,Hogares){
   estandarizar<-c('P5100','P5130','P5140','P5140','P5130','P5100','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
+
+  #ln variables 
+  Hogares$P5100<-log(Hogares$P5100)
+  Hogares$P5130<-log(Hogares$P5130)
+  Hogares$P5140<-log(Hogares$P5140)
   
-  
+  #variables según literatura 
+# revisar la construcción de edad (edad promedio) 
   
   return(Hogares)
 }
@@ -166,3 +175,4 @@ saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
+
