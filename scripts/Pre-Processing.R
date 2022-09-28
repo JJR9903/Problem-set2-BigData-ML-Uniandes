@@ -82,8 +82,9 @@ settingVariables_Hogares<-function(personas,Hogares){
               Oc           = sum(Oc,na.rm = TRUE),
               Des          = sum(Des,na.rm = TRUE),
               Ina          = sum(Ina,na.rm = TRUE),
-              Pea          = sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE)
-    )
+              Pea          = sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE),
+              P_o          =(Pet/Oc)
+              )
   
   JH<-personas %>% 
     filter(P6050_1==1)%>%
