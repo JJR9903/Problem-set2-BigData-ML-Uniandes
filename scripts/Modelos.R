@@ -47,7 +47,7 @@ train<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug + Clase  + Dom
                       HorasTrabajo + CotizaPension + OtroTrabajo + DeseaTrabajarMas + 
                       PrimerTrabajo + DesReciente + Ingresos_AlquilerPensiones + 
                       Ingresos_Paternidad + OtrosIngresos + AyudasEco + Pet + Oc + 
-                      Des + Ina + Pea + JH_Ing + JH_Mujer + JH_Edad + JH_RSS_S + 
+                      Des + Ina + Pea  + JH_Mujer + JH_Edad + JH_RSS_S + 
                       JH_NEduc + JH_Trabaja + JH_HorasTrabajo + JH_CotizaPension + 
                       JH_OtroTrabajo + JH_DeseaTrabajarMas + JH_PrimerTrabajo + 
                       JH_DesReciente + JH_Oc + JH_Des + JH_Ina,data=train_hogares)
@@ -100,7 +100,7 @@ model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
                      Trabajan + Estudiantes + Subsidios + HorasTrabajo + CotizaPension + 
                      OtroTrabajo + DeseaTrabajarMas + PrimerTrabajo + DesReciente + 
                      Ingresos_AlquilerPensiones + Ingresos_Paternidad + OtrosIngresos + 
-                     AyudasEco + Pet + Oc + Des + Ina + Pea + JH_Ing + JH_Mujer + JH_Edad + 
+                     AyudasEco + Pet + Oc + Des + Ina + Pea + JH_Mujer + JH_Edad + 
                      JH_RSS_S + JH_NEduc2+JH_NEduc3+JH_NEduc4+JH_NEduc5+JH_NEduc6+JH_NEduc9 + 
                      JH_Trabaja + JH_HorasTrabajo + JH_CotizaPension + JH_OtroTrabajo + 
                      JH_DeseaTrabajarMas + JH_PrimerTrabajo + JH_DesReciente + JH_Oc + JH_Des + JH_Ina)
@@ -163,9 +163,17 @@ betas <- sapply(betas, function(i) { paste0(i, "+") })
 betas <- paste(betas, collapse = '')
 betas  <- substr(betas, 1, nchar(betas)-1)
 
-model_Ing_lasso<-formula(paste0("Ingtotugarr~" ,betas))
+model_Ing_lasso<-formula(Ingtotugarr~Clase+DominioBOGOTA+DominioBUCARAMANGA+DominioCARTAGENA+DominioFLORENCIA+DominioIBAGUE+DominioMANIZALES+DominioMEDELLIN+DominioNEIVA+DominioPASTO+DominioPOPAYAN+DominioQUIBDO+
+                           `DominioRESTO URBANO`+DominioRURAL+DominioSINCELEJO+DominioVALLEDUPAR+DominioVILLAVICENCIO+P5010+P50902+P50903+P50904+P50905+P50906+P5100+P5130+P5140+Nper+Depto08+Depto11+Depto15+
+                           Depto18+Depto19+Depto20+Depto23+Depto25+Depto27+Depto41+Depto44+Depto47+Depto50+Depto52+Depto63+Depto66+Depto68+Depto70+Depto73+Depto76+Hombres+Pareja+Hijos+Nietos+EdadPromedio+SSalud+
+                           Trabajan+Estudiantes+Subsidios+HorasTrabajo+CotizaPension+OtroTrabajo+DeseaTrabajarMas+PrimerTrabajo+DesReciente+Ingresos_AlquilerPensiones+Ingresos_Paternidad+OtrosIngresos+AyudasEco+
+                           Oc+Des+Ina+JH_Mujer+JH_Edad+JH_RSS_S+JH_NEduc2+JH_NEduc3+JH_NEduc4+JH_NEduc5+JH_NEduc6+JH_NEduc9+JH_HorasTrabajo+JH_CotizaPension+JH_OtroTrabajo+JH_DeseaTrabajarMas+JH_PrimerTrabajo+
+                           JH_DesReciente+JH_Oc+JH_Des)
+
+
+
 train_lasso<-train[,Betas]    
-rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Betas,Nbetas_Lasso,Lasso)
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Betas,Nbetas_Lasso,Lasso,lasso)
 
 ##### RIDGE #####
 n_cores<-detectCores()
@@ -199,13 +207,13 @@ lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1]
 lambda_fp<-y_hat_R[which.min(y_hat_R$FPR),1] 
 lambda_fn<-y_hat_R[which.min(y_hat_R$FNR),1] 
 HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,FNR=lambda_fn,FPR=lambda_fp,MSE=lambda_mse,RMSE=lambda_rmse)
-stargazer(HyperP,type="text",summary=F,out = "views/LassoReg_HyperP.txt")
+stargazer(HyperP,type="text",summary=F,out = "views/RidgeReg_HyperP.txt")
 
 ridge_mse<-min(y_hat_R$MSE)
 ridge_rmse<-min(y_hat_R$RMSE)
 ridge_fp_fn_r<-min(y_hat_R$FPR_FNR_C)
-ridge_fpr<-min(y_hat_l$FPR)
-ridge_fnr<-min(y_hat_l$FNR)
+ridge_fpr<-min(y_hat_R$FPR)
+ridge_fnr<-min(y_hat_R$FNR)
 
 #variables del modelo de ridge 
 Ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,lambda=lambda_fp_fn_r,standarize=F)
@@ -217,7 +225,7 @@ Metricas<-data.frame(FP_FN_R=ridge_fp_fn_r,FNR=ridge_fnr,FPR=ridge_fpr,MSE=ridge
 stargazer(Metricas,type="text",summary=F,out = "views/RidgeReg.txt")
 stopCluster(cl)
 
-rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fP,ridge_fpr,ridge_fnr,Ridge,Betas,Nbetas_Ridge)
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fp,ridge_fpr,ridge_fnr,Ridge,Betas,Nbetas_Ridge)
 
 
 
@@ -226,7 +234,7 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
-alphas=seq(0,1,0.001)
+alphas=seq(0,1,0.01)
 HyperP<-data.frame(alpha=alphas,lambda=NA,FPR_FNR_C=NA)
 for (i in alphas){
   en<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=i,nlambda=100,standarize=F)
@@ -274,6 +282,71 @@ stargazer(Metricas,type="text",summary=F,out = "views/ENReg.txt")
 
 stopCluster(cl)
 rm(EN_CV,HyperP,Metricas,y_hat_EN,i,alphas,Betas,EN,Nbetas_EN)
+
+
+ 
+##### LASSO CON VARIABLES RECOMENDADAS POR LA LITERARURA #####
+##model matrix 
+train_lasso_li<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug +JH_Edad2+JH_Edad+Depto + Hombres + Mujeres+
+                      SSalud+Clase+ P_o + JH_RSS_S + P5100+ P5090+CotizaPension , data=train_hogares)
+
+##formula 
+model_Ing_lasso_li<-formula(Ingtotugarr~JH_Edad2+JH_Edad+ Depto08 + Depto11+Depto13+Depto15+Depto17+
+                              Depto18+Depto19+Depto20+Depto23+ Depto25+Depto27+Depto41+Depto44+Depto47+
+                              Depto50+Depto52+Depto54+Depto63+ Depto66+Depto68+Depto70+Depto73+Depto76+
+                              Hombres + Mujeres+ SSalud+Clase+ P_o + JH_RSS_S + P5100+P50902+P50903+P50904+P50905+P50906 +CotizaPension)
+
+n_cores<-detectCores()
+cl <- makePSOCKcluster(n_cores - 1) 
+registerDoParallel(cl)
+
+lasso<-glmnet(x=as.matrix(train_lasso_li[,-c(1:5)]),y=as.matrix(train_lasso_li[,'Ingtotugarr']),alpha=1,nlambda=1000,standarize=F)
+lambdas_LCV<-lasso[["lambda"]]
+Lasso_LCV <-train(model_Ing_lasso_li,data=train_lasso_li,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
+y_hat_lasso<-Lasso_LCV$pred%>%
+  left_join(Train_y, by = "rowIndex")%>%
+  mutate(P_pred=ifelse(pred<=Lp,1,0))
+
+y_hat_l<-y_hat_lasso%>%
+  group_by(lambda,Resample)%>%
+  summarize(MSE=sum((obs-pred)^2),
+            RMSE=sqrt(sum((obs-pred)^2)),
+            FPR_FNR_C=FPR_FNR_C(data.frame(pred=P_pred,obs=Pobre)),
+            FNR=FNR(data.frame(pred=P_pred,obs=Pobre)),
+            FPR=FPR(data.frame(pred=P_pred,obs=Pobre)))%>%
+  group_by(lambda)%>%
+  summarise(MSE=mean(MSE),
+            RMSE=mean(RMSE),
+            FPR_FNR_C=mean(FPR_FNR_C),
+            FNR=mean(FNR),
+            FPR=mean(FPR))
+
+lambda_mse<-y_hat_l[which.min(y_hat_l$MSE),1] 
+lambda_rmse<-y_hat_l[which.min(y_hat_l$RMSE),1] 
+lambda_fp_fn_r<-y_hat_l[which.min(y_hat_l$FPR_FNR_C),1] 
+lambda_fp<-y_hat_l[which.min(y_hat_l$FPR),1] 
+lambda_fn<-y_hat_l[which.min(y_hat_l$FNR),1] 
+HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,FNR=lambda_fn,FPR=lambda_fp,MSE=lambda_mse,RMSE=lambda_rmse)
+stargazer(HyperP,type="text",summary=F,out = "views/LassoReg_li_HyperP.txt")
+
+Lasso_mse<-min(y_hat_l$MSE)
+lasso_rmse<-min(y_hat_l$RMSE)
+lasso_fp_fn_r<-min(y_hat_l$FPR_FNR_C)
+lasso_fpr<-min(y_hat_l$FPR)
+lasso_fnr<-min(y_hat_l$FNR)
+
+#variables del modelo de lasso 
+Lasso<-glmnet(x=as.matrix(train_lasso_li[,-c(1:5)]),y=as.matrix(train_lasso_li[,'Ingtotugarr']),alpha=1,lambda=lambda_fp_fn_r,standarize=F)
+Betas<-coef(Lasso,  exact = FALSE,x=x, y=y)
+Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
+Nbetas_Lasso<-length(Betas)
+
+Metricas<-data.frame(FP_FN_R=lasso_fp_fn_r,FNR=lasso_fnr,FPR=lasso_fpr,MSE=Lasso_mse,RMSE=lasso_rmse,N_Betas=Nbetas_Lasso)
+stargazer(Metricas,type="text",summary=F,out = "views/LassoReg_li.txt")
+stopCluster(cl)
+
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso,Lasso,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Nbetas_Lasso,train_lasso_li,model_Ing_lasso_li)
+
 
 
 ##### REGRESSION TREES #####
