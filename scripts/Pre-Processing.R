@@ -181,9 +181,8 @@ rm(train_hogares,test_hogares,train_personas,test_personas)
 train_hogares_full <- readRDS("stores/train_hogares_full.rds")
 
 # altera los valores NA y los cambia por "0"
-train_hogares_full%>%
-   mutate(P5100= ifelse(is.na(P5100),0,P5100))
-train_hogares_full%>%
+train_hogares_full <- mutate(rain_hogares_full$P5100= ifelse(is.na(rain_hogares_full$P5100),0,rain_hogares_full$P5100))
+train_hogares_full%>%mutate
 mutate(P5140= ifelse(is.na(P5140),0,P5140))
 train_hogares_full%>%
   
