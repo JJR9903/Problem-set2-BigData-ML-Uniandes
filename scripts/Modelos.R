@@ -415,14 +415,15 @@ test <- train_hogares[-train_ind, ]
 
 ##OverSample
 train_hogares$Pobre<- factor(train_hogares$Pobre)
+  #Se debe poner el modelo que se usa
 train_h2 <- recipe(Pobre ~ P5000+P5010+SSalud+Trabajan+Estudiantes+CotizaPension+DeseaTrabajarMas+AyudasEco, data = train_hogares) %>%
   themis::step_smote(Pobre, over_ratio = 1) %>%
   prep() %>%
   bake(new_data = NULL)
 #Corroboramos que ahora la mitad de la muestra sea pobre
 prop.table(table(train_h2$Pobre))
-nrow(train_h2)
-nrow(train_hogares)
+#Aquí sabemos en qué porcentaje aumentó la muestra
+(nrow(train_h2)-nrow(train_hogares))/nrow(train_hogares)*100
 
 
 ##UnderSample
@@ -435,11 +436,15 @@ prop.table(table(train_h3$Pobre))
 nrow(train_h3)
 nrow(train_hogares)
 
-##Opti
+##Optimizar umbral de decisión
+  
+  
+ #Optimizador
 thresholds <- seq(0.1, 0.9, length.out = 100)
+  opt_t<-dat.frame()
 for (t in thresholds) {
   y_pred_t <- as.numeric(probs_outsample1 > t)
-  f1_t <- F1_Score(y_true = test$infielTRUE, y_pred = y_pred_t,
+  f1_t <- F1_Score(y_true = train_hogares$Pobre, y_pred = y_pred_t,
                    positive = 1)
   fila <- data.frame(t = t, F1 = f1_t)
   opt_t <- bind_rows(opt_t, fila)
