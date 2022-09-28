@@ -182,22 +182,3 @@ stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
 
-####IMPORTAR BASES COMPLETAS 
-train_hogares_full <- readRDS("stores/train_hogares_full.rds")
-
-# altera los valores NA y los cambia por "0"
-train_hogares_full <- mutate(rain_hogares_full$P5100= ifelse(is.na(rain_hogares_full$P5100),0,rain_hogares_full$P5100))
-train_hogares_full%>%mutate
-mutate(P5140= ifelse(is.na(P5140),0,P5140))
-train_hogares_full%>%
-  
-mutate(P5130= ifelse(is.na(P5130),0,P5130))
-
-# altera los valores NA y los cambia por "0"
- train_hogares_full %>%
-     select(P5100, P5140, P5130)
-   # "replace_na"  reemplaza los NA por "0" en Ozone
-         mutate(P5100= ifelse(is.na(P5100),0,P5100))
-         my_data <- mutate_at(my_data, c("C1", "C4"), ~replace(., is.na(.), 0))
-         train_hogares_full<-mutate(train_hogares_full, c("P5100")~replace(., is.na(.), 0))
-         
