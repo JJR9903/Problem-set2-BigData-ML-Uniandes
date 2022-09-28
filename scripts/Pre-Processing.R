@@ -177,14 +177,3 @@ stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
 
-####IMPORTAR BASES COMPLETAS 
-train_hogares_full <- readRDS("stores/train_hogares_full.rds")
-test_hogares_full <- readRDS("stores/test_hogares_full.rds")
-# altera los valores NA y los cambia por "0"
- train_hogares_full<-mutate_if(train_hogares_full, is.numeric, ~replace(., is.na(.), 0))
- view(train_hogares_full)
- test_hogares_full<-mutate_if(test_hogares_full, is.numeric, ~replace(., is.na(.), 0))
- view(test_hogares_full)
-         
-         
-         
