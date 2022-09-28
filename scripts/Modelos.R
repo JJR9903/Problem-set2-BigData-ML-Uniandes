@@ -30,7 +30,7 @@ pacman:: p_load(tidyverse,skimr,stargazer,fastDummies,caret,tidymodels,glmnet,pa
 
 
 train_hogares <- readRDS("stores/train_hogares_full.Rds")
-#test_hogares <- readRDS("stores/test_hogares_full.Rds")
+test_hogares <- readRDS("stores/test_hogares_full.Rds")
 
 #train_hogares <- readRDS(paste0(getwd(),"/stores/train_hogares_full.Rds"))
 #test_hogares <- readRDS(paste0(getwd(),"/stores/test_hogares_full.Rds"))
@@ -283,12 +283,17 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_EN,alphas_EN,en_cv,EN_CV,EN_mse
 
 ##### REGRESSION TREES #####
 
+##### PCA #####
+
+##### REGRESSION TREES #####
+
+##### REGRESSION TREES RANDOM FOREST #####
 
 
+##Falta sacar meetricas 
 
-
-
-
+##Matriz de confusión 
+confusionMatrix(data=k1 , reference=db$am[test] , mode="sens_spec" , positive="manual (1)")
 ########### PREDICCIÓN POBREZA ##########
 #Stratified Cross Validation
 ##### LOGIT #####

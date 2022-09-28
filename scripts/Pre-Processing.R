@@ -90,7 +90,8 @@ settingVariables_Hogares<-function(personas,Hogares){
     group_by(id) %>% 
     summarize(JH_Ing           = NotInTest(mean(Ingtot,na.rm = TRUE)),
               JH_Mujer         = mean(P6020_0,na.rm = TRUE),
-              JH_Edad          = mean(P6040,na.rm = TRUE),
+              JH_Edad          = mean(P6040,na.rm = TRUE), ##jefe hogar 
+              JH_Edad          = mean(P6040^2,na.rm = TRUE),
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
               JH_Trabaja       = ifelse(P6240_1==1,1,0),
@@ -103,10 +104,10 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_DesReciente   = ifelse(is.na(P7422),0,P7422),
               JH_Oc            = ifelse(is.na(Oc),0,Oc),
               JH_Des           = ifelse(is.na(Des),0,Des),
-              JH_Ina           = ifelse(is.na(Ina),0,Ina)
+              JH_Ina           = ifelse(is.na(Ina),0,Ina),
+              
               
     )
-  
   
   
   Hogares<- left_join(Hogares, sum_Hogar,by="id")
@@ -118,14 +119,14 @@ settingVariables_Hogares<-function(personas,Hogares){
   
   factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
+factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
+  Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
 
   Hogares$Lp=Hogares$Lp*Hogares$Npersug
   
   Hogares$Lp<-log(Hogares$Lp)
+  Hogares$Lp[Hogares$Lp==-Inf]<-0
   
-  Hogares$P5100<-log(Hogares$P5100)
-  Hogares$P5130<-log(Hogares$P5130)
-  Hogares$P5140<-log(Hogares$P5130)
   #remplazar por 0 los missing values (ceros porque significa que no tienen ingresos o egresos de esos rubros o para los que con el log=-inf)
   Hogares$Lp[is.na(Hogares$Lp)]<-0
   Hogares$P5100[is.na(Hogares$P5100)]<-0
@@ -140,9 +141,18 @@ settingVariables_Hogares<-function(personas,Hogares){
   estandarizar<-c('P5100','P5130','P5140','P5140','P5130','P5100','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
+
+  #ln variables 
+  Hogares$P5100<-log(Hogares$P5100) 
+  Hogares$P5130<-log(Hogares$P5130)
+  Hogares$P5140<-log(Hogares$P5140)
   
+  Hogares$P5100[Hogares$P5100==-Inf]<-0
+  Hogares$P5130[Hogares$P5130==-Inf]<-0
+  Hogares$P5140[Hogares$P5140==-Inf]<-0
   
-  
+ 
+
   return(Hogares)
 }
 
@@ -171,3 +181,23 @@ saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
+
+####IMPORTAR BASES COMPLETAS 
+train_hogares_full <- readRDS("stores/train_hogares_full.rds")
+
+# altera los valores NA y los cambia por "0"
+train_hogares_full <- mutate(rain_hogares_full$P5100= ifelse(is.na(rain_hogares_full$P5100),0,rain_hogares_full$P5100))
+train_hogares_full%>%mutate
+mutate(P5140= ifelse(is.na(P5140),0,P5140))
+train_hogares_full%>%
+  
+mutate(P5130= ifelse(is.na(P5130),0,P5130))
+
+# altera los valores NA y los cambia por "0"
+ train_hogares_full %>%
+     select(P5100, P5140, P5130)
+   # "replace_na"  reemplaza los NA por "0" en Ozone
+         mutate(P5100= ifelse(is.na(P5100),0,P5100))
+         my_data <- mutate_at(my_data, c("C1", "C4"), ~replace(., is.na(.), 0))
+         train_hogares_full<-mutate(train_hogares_full, c("P5100")~replace(., is.na(.), 0))
+         
