@@ -91,7 +91,7 @@ settingVariables_Hogares<-function(personas,Hogares){
     summarize(JH_Ing           = NotInTest(mean(Ingtot,na.rm = TRUE)),
               JH_Mujer         = mean(P6020_0,na.rm = TRUE),
               JH_Edad          = mean(P6040,na.rm = TRUE), ##jefe hogar 
-              JH_Edad          = mean(P6040^2,na.rm = TRUE),
+              JH_Edad2         = mean(P6040^2,na.rm = TRUE),
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
               JH_Trabaja       = ifelse(P6240_1==1,1,0),
