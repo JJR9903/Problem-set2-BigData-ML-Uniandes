@@ -170,10 +170,17 @@ train_hogares$Ingtotugarr[train_hogares$Ingtotugarr==-Inf]<-0
 train_hogares<-mutate_if(train_hogares, is.numeric, ~replace(., is.na(.), 0))
 test_hogares<-mutate_if(test_hogares, is.numeric, ~replace(., is.na(.), 0))
 
+
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
 saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 
-stopCluster(cl)
+ df_elastic<-train_hogares%>%
+  subset(select=-c(Indigente,Nindigentes,Ingpcug,Npobres))
+ 
+ saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
+ saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
+ 
+ 
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
 
