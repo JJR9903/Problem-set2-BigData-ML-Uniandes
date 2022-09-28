@@ -26,9 +26,11 @@ dir_set <- function(){
 
 dir_set()
 
-pacman:: p_load(tidyverse,stargazer,caret,tidymodels,glmnet,parallel,doParallel,MLmetrics, themis)
-#pacman:: p_load(tidyverse,stargazer,caret,tidymodels,glmnet,parallel,doParallel,tsutils,glmnetUtils,MLmetrics, themis)
+pacman:: p_load(tidyverse,stargazer,caret,tidymodels,glmnet,parallel,doParallel,MLmetrics, themis,rattle,rlang,randomForest)
 
+set.seed(1234)
+n_cores<-detectCores()
+cl <- makePSOCKcluster(n_cores - 1) 
 
 train_hogares <- readRDS("stores/train_hogares_full.Rds")
 #test_hogares <- readRDS("stores/test_hogares_full.Rds")
@@ -85,6 +87,65 @@ FNR <- function (data, lev = NULL, model = NULL){
   out
 }
 
+###### NEW METRIC 
+fp_fn_vec <- function(truth, estimate, na_rm = TRUE, values=Train_y) {
+  
+  fp_fn_impl <- function(truth,estimate,values) {
+    estimate<-data.frame(estimate)%>%setNames("estimate")%>%
+      rownames_to_column(var = "rowIndex")%>%
+      mutate(rowIndex = as.numeric(rowIndex))%>%
+      left_join(Train_y, by = "rowIndex")%>%
+      mutate(estimate=ifelse(estimate<=Lp,1,0))
+    
+    cm<-caret::confusionMatrix(as.factor(estimate$estimate),reference = as.factor(estimate$Pobre))
+    fp<-cm[["table"]]["1","0"]
+    fn<-cm[["table"]]["0","1"]
+    tn<-cm[["table"]]["0","0"]
+    tp<-cm[["table"]]["1","1"]
+    out<-(fn/(fn+tp)*0.75)+(fp/(fp+tn)*0.25)  
+    out
+    
+  }
+  
+  metric_vec_template(
+    metric_impl = fp_fn_impl,
+    truth = truth, 
+    estimate = estimate,
+    na_rm = na_rm,
+    cls = "numeric",
+    values=Train_y
+  )
+  
+}
+fp_fn <- function(data, ...) {
+  UseMethod("fp_fn")
+}
+
+fp_fn <- new_numeric_metric(fp_fn, direction = "minimize")
+
+fp_fn.data.frame <- function(data, truth, estimate, na_rm = TRUE, ...) {
+  
+  metric_summarizer(
+    metric_nm = "fp_fn",
+    metric_fn = fp_fn_vec,
+    data = data,
+    truth = !! enquo(truth),
+    estimate = !! enquo(estimate), 
+    na_rm = na_rm,
+    ...
+  )
+  
+}
+
+
+
+
+
+
+
+
+
+
 ########### PREDICCIÓN INGRESO ##########
 model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
                      DominioBUCARAMANGA+DominioCALI+DominioCARTAGENA+DominioCUCUTA+
@@ -107,13 +168,11 @@ model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
 
 
 ##### LASSO #####
-n_cores<-detectCores()
-cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
-             
-lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,nlambda=1000,standarize=F)
+lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,nlambda=10,standarize=F)
 lambdas_LCV<-lasso[["lambda"]]
 Lasso_LCV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
+
 y_hat_lasso<-Lasso_LCV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
   mutate(P_pred=ifelse(pred<=Lp,1,0))
@@ -176,8 +235,6 @@ train_lasso<-train[,Betas]
 rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Betas,Nbetas_Lasso,Lasso,lasso)
 
 ##### RIDGE #####
-n_cores<-detectCores()
-cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
 
 ridge<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=0,nlambda=1000,standarize=F)
@@ -231,8 +288,6 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge,Ridge_CV,ridge_mse,ri
 
 
 ##### ELASTIC NET #####
-n_cores<-detectCores()
-cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
 alphas=seq(0,1,0.01)
 HyperP<-data.frame(alpha=alphas,lambda=NA,FPR_FNR_C=NA)
@@ -296,8 +351,6 @@ model_Ing_lasso_li<-formula(Ingtotugarr~JH_Edad2+JH_Edad+ Depto08 + Depto11+Dept
                               Depto50+Depto52+Depto54+Depto63+ Depto66+Depto68+Depto70+Depto73+Depto76+
                               Hombres + Mujeres+ SSalud+Clase+ P_o + JH_RSS_S + P5100+P50902+P50903+P50904+P50905+P50906 +CotizaPension)
 
-n_cores<-detectCores()
-cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
 
 lasso<-glmnet(x=as.matrix(train_lasso_li[,-c(1:5)]),y=as.matrix(train_lasso_li[,'Ingtotugarr']),alpha=1,nlambda=1000,standarize=F)
@@ -348,10 +401,69 @@ stopCluster(cl)
 rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso,Lasso,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Nbetas_Lasso,train_lasso_li,model_Ing_lasso_li)
 
 
-
-##### REGRESSION TREES #####
-
 ##### REGRESSION TREES RANDOM FOREST #####
+registerDoParallel(cl)
+modelo1 <- decision_tree() %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+modelo1_fit <- fit(modelo1, Ingtotugarr ~ ., data = as.data.frame(train))
+stopCluster(cl)
+
+fancyRpartPlot(modelo1_fit$fit, main = "Árbol sin fine tuning", sub = "")
+
+importancia <- varImp(modelo1_fit$fit)
+importancia <- importancia %>%
+  data.frame() %>%
+  rownames_to_column(var = "Variable") %>%
+  mutate(Porcentaje = Overall/sum(Overall)) %>%
+  filter(Porcentaje > 0) %>%
+  arrange(desc(Porcentaje))
+
+y_hat_insample <- predict(modelo1_fit, as.data.frame(train))%>%
+  rownames_to_column(var = "rowIndex")%>%
+  mutate(rowIndex = as.numeric(rowIndex))%>%
+  left_join(Train_y, by = "rowIndex")%>%
+  mutate(P_pred=ifelse(.pred<=Lp,1,0))
+
+FPR_FNR_C(data.frame(pred=y_hat_insample$P_pred,obs=y_hat_insample$Pobre))
+
+
+######
+forest <- train( model_Ing,  data=train, method='rf', trControl=trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
+ntree=c(100)
+
+######
+
+######
+modelo2 <- decision_tree(
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = tune()
+) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+tree_grid <- crossing(
+  cost_complexity = c(0.0001),
+  min_n = c(2, 14, 27),
+  tree_depth = c(4, 8, 16)
+)
+
+registerDoParallel(cl)
+Train<-as.data.frame(train)
+folds <- vfold_cv(Train, strata = Pobre, v = 5)
+
+
+
+modelo2_cv <- tune_grid(
+  modelo2,
+  model_Ing,
+  resamples = folds,
+  grid = tree_grid,
+  metrics = metric_set(fp_fn),
+  control = control_grid(event_level = 'second')
+)
 
 
 
@@ -365,9 +477,57 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso,Lasso,lasso_fp_fn_r,L
 ##### LOGIT #####
 
 ##### LOGIT-LASSO #####
-Lasso <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 5 ,savePredictions = 'final'),method = "glmnet",metric=metric_set(fp_fn_rate_vec), tuneGrid = expand.grid(alpha = 1,lambda=seq(0,1,0.01)))
-Lasso[["bestTune"]][['alpha']]
-Lasso[["bestTune"]][['lambda']]
+registerDoParallel(cl)
+
+L_Lasso<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=0,nlambda=1000,standarize=F, family="Binomial")
+L_Lasso_RCV<-ridge[["lambda"]]
+L_Lasso_CV <-train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", family="Binomial", tuneGrid = expand.grid(alpha = 0,lambda=lambdas_RCV))
+y_hat_Ridge<-Ridge_CV$pred%>%
+  left_join(Train_y, by = "rowIndex")%>%
+  mutate(P_pred=ifelse(pred<=Lp,1,0))
+
+y_hat_R<-y_hat_Ridge%>%
+  group_by(lambda,Resample)%>%
+  summarize(MSE=sum((obs-pred)^2),
+            RMSE=sqrt(sum((obs-pred)^2)),
+            FPR_FNR_C=FPR_FNR_C(data.frame(pred=P_pred,obs=Pobre)),
+            FNR=FNR(data.frame(pred=P_pred,obs=Pobre)),
+            FPR=FPR(data.frame(pred=P_pred,obs=Pobre)))%>%
+  group_by(lambda)%>%
+  summarise(MSE=mean(MSE),
+            RMSE=mean(RMSE),
+            FPR_FNR_C=mean(FPR_FNR_C),
+            FNR=mean(FNR),
+            FPR=mean(FPR))
+
+lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] 
+lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] 
+lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] 
+lambda_fp<-y_hat_R[which.min(y_hat_R$FPR),1] 
+lambda_fn<-y_hat_R[which.min(y_hat_R$FNR),1] 
+HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,FNR=lambda_fn,FPR=lambda_fp,MSE=lambda_mse,RMSE=lambda_rmse)
+stargazer(HyperP,type="text",summary=F,out = "views/RidgeReg_HyperP.txt")
+
+ridge_mse<-min(y_hat_R$MSE)
+ridge_rmse<-min(y_hat_R$RMSE)
+ridge_fp_fn_r<-min(y_hat_R$FPR_FNR_C)
+ridge_fpr<-min(y_hat_R$FPR)
+ridge_fnr<-min(y_hat_R$FNR)
+
+#variables del modelo de ridge 
+Ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,lambda=lambda_fp_fn_r,standarize=F)
+Betas<-coef(Ridge,  exact = FALSE,x=x, y=y)
+Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
+Nbetas_Ridge<-length(Betas)
+
+Metricas<-data.frame(FP_FN_R=ridge_fp_fn_r,FNR=ridge_fnr,FPR=ridge_fpr,MSE=ridge_mse,RMSE=ridge_rmse,N_Betas=Nbetas_Ridge)
+stargazer(Metricas,type="text",summary=F,out = "views/RidgeReg.txt")
+stopCluster(cl)
+
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fp,ridge_fpr,ridge_fnr,Ridge,Betas,Nbetas_Ridge)
+
+
+
 ##### RANDOM FOREST #####
 #Hay que definir Ctrl
 Ctrl<-trainControl(method="CV")
