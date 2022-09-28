@@ -132,6 +132,10 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares$P5130[is.na(Hogares$P5130)]<-0
   Hogares$P5140[is.na(Hogares$P5140)]<-0
   
+  Hogares$Lp[Hogares$Lp==-Inf]<-0
+  Hogares$P5100[Hogares$P5100==-Inf]<-0
+  Hogares$P5130[Hogares$P5130==-Inf]<-0
+  Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
   estandarizar<-c('P5100','P5130','P5140','P5140','P5130','P5100','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
@@ -157,7 +161,8 @@ test_personas<-settingVariables_Personas(test_personas)
 ###### Merge con Hogares#### 
 train_hogares<-settingVariables_Hogares(train_personas,train_hogares)
 train_hogares$Ingtotugarr=log(train_hogares$Ingtotugarr)
-train_hogares$Ingtotugarr[is.na(train_hogares$Ingtotugarr)]<-0
+train_hogares$Ingtotugarr[is.nan(train_hogares$Ingtotugarr)]<-0
+train_hogares$Ingtotugarr[train_hogares$Ingtotugarr==-Inf]<-0
 test_hogares<-settingVariables_Hogares(test_personas,test_hogares)
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
