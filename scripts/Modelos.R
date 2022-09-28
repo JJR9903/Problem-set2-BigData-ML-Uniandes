@@ -89,7 +89,7 @@ mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
 
 ###################### ENTRENAMIENTO DE LOS MODELOS ############################
 
-###################### REVISION DE CLASE DESBALANCEADA Y  AJUSTE ############################
+###################### ENTRENAMIENTO DE LOS MODELOS ############################
 train<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug + Clase  + Dominio + P5010 + P5090 + P5100 + P5130 + P5140 + 
                       Nper + Depto + Hombres + Mujeres + Pareja + Hijos + Nietos + 
                       EdadPromedio + SSalud + Trabajan + Estudiantes + Subsidios + 
@@ -110,12 +110,29 @@ FPR_FNR_C <- function (data, lev = NULL, model = NULL){
   fn<-cm[["table"]]["0","1"]
   tn<-cm[["table"]]["0","0"]
   tp<-cm[["table"]]["1","1"]
-  FPR<-fp/(fp+tn)
-  FNR<-fn/(fn+tp)
-  out<-(FNR*0.75)+(FPR*0.25)  
+  out<-(fn/(fn+tp)*0.75)+(fp/(fp+tn)*0.25)  
   out
 }
 
+FPR <- function (data, lev = NULL, model = NULL){ 
+  cm<-caret::confusionMatrix(as.factor(data$pred),reference = as.factor(data$obs))
+  fp<-cm[["table"]]["1","0"]
+  fn<-cm[["table"]]["0","1"]
+  tn<-cm[["table"]]["0","0"]
+  tp<-cm[["table"]]["1","1"]
+  out<-fp/(fp+tn)
+  out
+}
+
+FNR <- function (data, lev = NULL, model = NULL){ 
+  cm<-caret::confusionMatrix(as.factor(data$pred),reference = as.factor(data$obs))
+  fp<-cm[["table"]]["1","0"]
+  fn<-cm[["table"]]["0","1"]
+  tn<-cm[["table"]]["0","0"]
+  tp<-cm[["table"]]["1","1"]
+  out<-fn/(fn+tp)
+  out
+}
 
 ########### PREDICCIÓN INGRESO ##########
 model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
@@ -142,9 +159,9 @@ model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
-
-lasso_cv<-cv.glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),trace.it = T,type.measure = "mse")
-lambdas_LCV<-c(seq(lasso_cv$lambda.min,max(lasso_cv$lambda),length.out=1000),lasso_cv$lambda.1se)
+             
+lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,nlambda=1000,standarize=F)
+lambdas_LCV<-lasso[["lambda"]]
 Lasso_LCV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
 y_hat_lasso<-Lasso_LCV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
@@ -158,6 +175,8 @@ y_hat_l<-y_hat_lasso%>%
   group_by(lambda)%>%
   summarise(MSE=mean(MSE),
             RMSE=mean(RMSE),
+            FPR_FNR_C=mean(FPR_FNR_C),
+            FPR_FNR_C=mean(FPR_FNR_C),
             FPR_FNR_C=mean(FPR_FNR_C))
 
 lambda_mse<-y_hat_l[which.min(y_hat_l$MSE),1] # 948
@@ -174,15 +193,18 @@ Metricas<-data.frame(FP_FN_R=lasso_fp_fn_r,MSE=Lasso_mse,RMSE=lasso_rmse)
 stargazer(Metricas,type="text",summary=F,out = "views/LassoReg.txt")
 stopCluster(cl)
 
-rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso )
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP)
+#variables del modelo de lasso 
+Lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,lambda=0.001380268,standarize=F)
+Lasso$beta
 
 ##### RIDGE #####
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
 
-ridge_cv<-cv.glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,trace.it = T,type.measure = "mse")
-lambdas_RCV<-c(seq(ridge_cv$lambda.min,max(ridge_cv$lambda),length.out=1000),ridge_cv$lambda.1se)
+ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,nlambda=1000,standarize=F)
+lambdas_RCV<-ridge[["lambda"]]
 Ridge_CV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 0,lambda=lambdas_RCV))
 y_hat_Ridge<-Ridge_CV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
@@ -198,9 +220,9 @@ y_hat_R<-y_hat_Ridge%>%
             RMSE=mean(RMSE),
             FPR_FNR_C=mean(FPR_FNR_C))
 
-lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] # 948
-lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] # 948
-lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] # 948
+lambda_mse<-y_hat_R[which.min(y_hat_R$MSE),1] 
+lambda_rmse<-y_hat_R[which.min(y_hat_R$RMSE),1] 
+lambda_fp_fn_r<-y_hat_R[which.min(y_hat_R$FPR_FNR_C),1] 
 HyperP<-data.frame(FP_FN_R=lambda_fp_fn_r,MSE=lambda_mse,RMSE=lambda_rmse)
 stargazer(HyperP,type="text",summary=F,out = "views/LassoReg_HyperP.txt")
 
@@ -212,16 +234,18 @@ Metricas<-data.frame(FP_FN_R=ridge_fp_fn_r,MSE=ridge_mse,RMSE=ridge_rmse)
 stargazer(Metricas,type="text",summary=F,out = "views/RidgeReg.txt")
 stopCluster(cl)
 
-rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge )
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP)
 
 ##### ELASTIC NET #####
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
+alphas=seq(0,1,0.01)
+en<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=alphas,nlambda=1000,standarize=F)
+en<-cva.glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=alphas,nlambda=10,standarize=F,sparse=T)
 
-en_cv<-cva.glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),trace.it = T,type.measure = "mse")
-lambdas_EN<-c(seq(en_cv$lambda.min,max(en_cv$lambda),length.out=1000),en_cv$lambda.1se)
-alphas_EN<-en_cv[["alpha"]]
+lambdas_EN<-en[["lambda"]]
+alphas_EN<-en[["alpha"]]
 EN_CV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = alphas_EN,lambda=lambdas_EN))
 y_hat_EN<-EN_CV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
@@ -254,8 +278,10 @@ stargazer(Metricas,type="text",summary=F,out = "views/ENReg.txt")
 stopCluster(cl)
 
 
-rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_EN,alphas_EN,en_cv,EN_CV,EN_mse,EN_mse,EN_mse,Metricas,y_hat_EN,alpha_mse,alpha_rmse,alpha_fp_fn_r)
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_EN,alphas_EN,en_cv,EN_CV,EN_mse,EN_mse,EN_mse,Metricas,y_hat_EN,alpha_mse,alpha_rmse,alpha_fp_fn_r,HyperP)
 
+
+##### REGRESSION TREES #####
 
 ##### PCA #####
 
@@ -263,18 +289,6 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_EN,alphas_EN,en_cv,EN_CV,EN_mse
 
 ##### REGRESSION TREES RANDOM FOREST #####
 
-##### K-N-N  #####
-set.seed(210422) 
-test <- sample(x=1:32, size=10) ## generar observaciones aleatorias
-x <- scale(db[,-9]) ## reescalar variables (para calcular distancias)
-apply(x,2,sd) ## verificar
-
-k1 = knn(train=x[-test,], ## base de entrenamiento
-         test=x[test,],   ## base de testeo
-         cl=db$am[-test], ## outcome
-         k=1)        ## vecinos 
-
-tibble(db$am[test],k1)
 
 ##Falta sacar meetricas 
 
