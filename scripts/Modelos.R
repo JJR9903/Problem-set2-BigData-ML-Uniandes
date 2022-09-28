@@ -146,24 +146,35 @@ lasso_fp_fn_r<-min(y_hat_l$FPR_FNR_C)
 lasso_fpr<-min(y_hat_l$FPR)
 lasso_fnr<-min(y_hat_l$FNR)
 
-Metricas<-data.frame(FP_FN_R=lasso_fp_fn_r,FNR=lasso_fnr,FPR=lasso_fpr,MSE=Lasso_mse,RMSE=lasso_rmse)
+#variables del modelo de lasso 
+Lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,lambda=lambda_fp_fn_r,standarize=F)
+Betas<-coef(Lasso,  exact = FALSE,x=x, y=y)
+Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
+Nbetas_Lasso<-length(Betas)
+
+Metricas<-data.frame(FP_FN_R=lasso_fp_fn_r,FNR=lasso_fnr,FPR=lasso_fpr,MSE=Lasso_mse,RMSE=lasso_rmse,N_Betas=Nbetas_Lasso)
 stargazer(Metricas,type="text",summary=F,out = "views/LassoReg.txt")
 stopCluster(cl)
 
-rm(lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr)
-#variables del modelo de lasso 
-Lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,lambda=lambda_fp_fn_r,standarize=F)
-Lasso$beta
-rm(lambda_fp_fn_r)
+
+betas=Betas[Betas!='(Intercept)']
+
+betas <- sapply(betas, function(i) { paste0(i, "+") })
+betas <- paste(betas, collapse = '')
+betas  <- substr(betas, 1, nchar(betas)-1)
+
+model_Ing_lasso<-formula(paste0("Ingtotugarr~" ,betas))
+train_lasso<-train[,Betas]    
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso_cv,lasso_fp_fn_r,Lasso_LCV,Lasso_mse,lasso_rmse,Metricas,y_hat_l,y_hat_lasso,HyperP,lambda_fp,lambda_fn,lasso_fpr,lasso_fnr,betas,Betas,Nbetas_Lasso,Lasso)
 
 ##### RIDGE #####
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
 
-ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,nlambda=1000,standarize=F)
+ridge<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=0,nlambda=1000,standarize=F)
 lambdas_RCV<-ridge[["lambda"]]
-Ridge_CV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 0,lambda=lambdas_RCV))
+Ridge_CV <-train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 0,lambda=lambdas_RCV))
 y_hat_Ridge<-Ridge_CV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
   mutate(P_pred=ifelse(pred<=Lp,1,0))
@@ -196,15 +207,18 @@ ridge_fp_fn_r<-min(y_hat_R$FPR_FNR_C)
 ridge_fpr<-min(y_hat_l$FPR)
 ridge_fnr<-min(y_hat_l$FNR)
 
-Metricas<-data.frame(FP_FN_R=ridge_fp_fn_r,FNR=ridge_fnr,FPR=ridge_fpr,MSE=ridge_mse,RMSE=ridge_rmse)
+#variables del modelo de ridge 
+Ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,lambda=lambda_fp_fn_r,standarize=F)
+Betas<-coef(Ridge,  exact = FALSE,x=x, y=y)
+Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
+Nbetas_Ridge<-length(Betas)
+
+Metricas<-data.frame(FP_FN_R=ridge_fp_fn_r,FNR=ridge_fnr,FPR=ridge_fpr,MSE=ridge_mse,RMSE=ridge_rmse,N_Betas=Nbetas_Ridge)
 stargazer(Metricas,type="text",summary=F,out = "views/RidgeReg.txt")
 stopCluster(cl)
 
-rm(lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fP,ridge_fpr,ridge_fnr)
-#variables del modelo de ridge 
-Ridge<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=0,lambda=lambda_fp_fn_r,standarize=F)
-Ridge$beta
-rm(lambda_fp_fn_r)
+rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge_cv,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fP,ridge_fpr,ridge_fnr,Ridge,Betas,Nbetas_Ridge)
+
 
 
 
@@ -215,9 +229,9 @@ registerDoParallel(cl)
 alphas=seq(0,1,0.001)
 HyperP<-data.frame(alpha=alphas,lambda=NA,FPR_FNR_C=NA)
 for (i in alphas){
-  en<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=i,nlambda=100,standarize=F)
+  en<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=i,nlambda=100,standarize=F)
   lambdas_EN<-en[["lambda"]]
-  EN_CV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = i,lambda=lambdas_EN))
+  EN_CV <-train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = i,lambda=lambdas_EN))
   y_hat_EN<-EN_CV$pred%>%
     left_join(Train_y, by = "rowIndex")%>%
     mutate(P_pred=ifelse(pred<=Lp,1,0))
@@ -236,8 +250,9 @@ for (i in alphas){
 }
 
 HyperP<-HyperP[which.min(HyperP$FPR_FNR_C),]
+stargazer(HyperP,type="text",summary=F,out = "views/ENReg_HyperP.txt")
 
-EN_CV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = as.numeric(HyperP['alpha']),lambda=as.numeric(HyperP['lambda'])))
+EN_CV <-train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = as.numeric(HyperP['alpha']),lambda=as.numeric(HyperP['lambda'])))
 y_hat_EN<-EN_CV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
   mutate(P_pred=ifelse(pred<=Lp,1,0))
@@ -249,11 +264,16 @@ y_hat_EN<-y_hat_EN%>%
             FNR=FNR(data.frame(pred=P_pred,obs=Pobre)),
             FPR=FPR(data.frame(pred=P_pred,obs=Pobre)))
 
+EN<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=as.numeric(HyperP['alpha']),lambda=as.numeric(HyperP['lambda']),standarize=F)
+Betas<-coef(EN,  exact = FALSE,x=x, y=y)
+Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
+Nbetas_EN<-length(Betas)
 
-Metricas<-data.frame(FP_FN_R=y_hat_EN$FPR_FNR_C,FNR=y_hat_EN$FNR,FPR=y_hat_EN$FPR,MSE=y_hat_EN$MSE,RMSE=y_hat_EN$RMSE)
+Metricas<-data.frame(FP_FN_R=y_hat_EN$FPR_FNR_C,FNR=y_hat_EN$FNR,FPR=y_hat_EN$FPR,MSE=y_hat_EN$MSE,RMSE=y_hat_EN$RMSE,N_Betas=Nbetas_EN)
 stargazer(Metricas,type="text",summary=F,out = "views/ENReg.txt")
+
 stopCluster(cl)
-rm(EN_CV,HyperP,Metricas,y_hat_EN,i,alphas)
+rm(EN_CV,HyperP,Metricas,y_hat_EN,i,alphas,Betas,EN,Nbetas_EN)
 
 
 ##### REGRESSION TREES #####
