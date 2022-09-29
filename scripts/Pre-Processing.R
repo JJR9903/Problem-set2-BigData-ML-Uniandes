@@ -76,7 +76,7 @@ settingVariables_Hogares<-function(personas,Hogares){
               Ingresos_AlquilerPensiones   = ifelse(any(P7495,na.rm = TRUE),1,0),
               Ingresos_Paternidad   = ifelse(any(P7500s3,na.rm = TRUE),1,0),
               OtrosIngresos= ifelse(any(P7505,na.rm = TRUE),1,0),
-              AyudasEco= ifelse(any(P7510,na.rm = TRUE),1,0),
+              AyudasEco= ifelse(any(P7510s3,na.rm = TRUE),1,0),
               Pet          = sum(Pet,na.rm = TRUE),
               Oc           = sum(Oc,na.rm = TRUE),
               Des          = sum(Des,na.rm = TRUE),
@@ -142,6 +142,9 @@ factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')
   estandarizar<-c('P5140','P5130','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
+  
+  Hogares$Dominio<-sub(" ", "", Hogares$Dominio)
+  Hogares$Depto<-sub(" ", "", Hogares$Depto)
 
   return(Hogares)
 }
@@ -176,6 +179,8 @@ saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 stopCluster(cl)
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
+
+
 
 
 

@@ -26,7 +26,7 @@ dir_set <- function(){
 
 dir_set()
 
-pacman:: p_load(tidyverse,stargazer,caret,tidymodels,glmnet,parallel,doParallel,MLmetrics, themis,rattle,rlang,randomForest)
+pacman:: p_load(tidyverse,stargazer,caret,tidymodels,glmnet,parallel,doParallel,MLmetrics,themis,rattle,rlang,randomForest,mlr,rpart,rpart.plot)
 
 set.seed(1234)
 n_cores<-detectCores()
@@ -151,8 +151,8 @@ model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
                      DominioBUCARAMANGA+DominioCALI+DominioCARTAGENA+DominioCUCUTA+
                      DominioFLORENCIA+DominioIBAGUE+DominioMANIZALES+DominioMEDELLIN+
                      DominioMONTERIA+DominioNEIVA+DominioPASTO+DominioPEREIRA+DominioPOPAYAN+
-                     DominioQUIBDO+`DominioRESTO URBANO`+DominioRIOHACHA+DominioRURAL+
-                     `DominioSANTA MARTA`+DominioSINCELEJO+DominioTUNJA+DominioVALLEDUPAR+
+                     DominioQUIBDO+DominioRESTOURBANO+DominioRIOHACHA+DominioRURAL+
+                     DominioSANTAMARTA +DominioSINCELEJO+DominioTUNJA+DominioVALLEDUPAR+
                      DominioVILLAVICENCIO + P5010 + P50902+P50903+P50904+P50905+P50906 + 
                      P5100 + P5130 + P5140 + Nper + Depto08 + Depto11+Depto13+Depto15+Depto17+
                      Depto18+Depto19+Depto20+Depto23+ Depto25+Depto27+Depto41+Depto44+Depto47+
@@ -171,13 +171,11 @@ model_Ing<-formula(Ingtotugarr~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
 registerDoParallel(cl)
 lasso<-glmnet(x=as.matrix(train[,-c(1:5)]),y=as.matrix(train[,'Ingtotugarr']),alpha=1,nlambda=10,standarize=F)
 lambdas_LCV<-lasso[["lambda"]]
-Lasso_LCV <-train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
+Lasso_LCV <-caret::train(model_Ing,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
 
-y_hat_lasso<-Lasso_LCV$pred%>%
+y_hat_l<-Lasso_LCV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
-  mutate(P_pred=ifelse(pred<=Lp,1,0))
-
-y_hat_l<-y_hat_lasso%>%
+  mutate(P_pred=ifelse(pred<=Lp,1,0))%>%
   group_by(lambda,Resample)%>%
   summarize(MSE=sum((obs-pred)^2),
             RMSE=sqrt(sum((obs-pred)^2)),
@@ -223,7 +221,7 @@ betas <- paste(betas, collapse = '')
 betas  <- substr(betas, 1, nchar(betas)-1)
 
 model_Ing_lasso<-formula(Ingtotugarr~Clase+DominioBOGOTA+DominioBUCARAMANGA+DominioCARTAGENA+DominioFLORENCIA+DominioIBAGUE+DominioMANIZALES+DominioMEDELLIN+DominioNEIVA+DominioPASTO+DominioPOPAYAN+DominioQUIBDO+
-                           `DominioRESTO URBANO`+DominioRURAL+DominioSINCELEJO+DominioVALLEDUPAR+DominioVILLAVICENCIO+P5010+P50902+P50903+P50904+P50905+P50906+P5100+P5130+P5140+Nper+Depto08+Depto11+Depto15+
+                           `DominioRESTOURBANO`+DominioRURAL+DominioSINCELEJO+DominioVALLEDUPAR+DominioVILLAVICENCIO+P5010+P50902+P50903+P50904+P50905+P50906+P5100+P5130+P5140+Nper+Depto08+Depto11+Depto15+
                            Depto18+Depto19+Depto20+Depto23+Depto25+Depto27+Depto41+Depto44+Depto47+Depto50+Depto52+Depto63+Depto66+Depto68+Depto70+Depto73+Depto76+Hombres+Pareja+Hijos+Nietos+EdadPromedio+SSalud+
                            Trabajan+Estudiantes+Subsidios+HorasTrabajo+CotizaPension+OtroTrabajo+DeseaTrabajarMas+PrimerTrabajo+DesReciente+Ingresos_AlquilerPensiones+Ingresos_Paternidad+OtrosIngresos+AyudasEco+
                            Oc+Des+Ina+JH_Mujer+JH_Edad+JH_RSS_S+JH_NEduc2+JH_NEduc3+JH_NEduc4+JH_NEduc5+JH_NEduc6+JH_NEduc9+JH_HorasTrabajo+JH_CotizaPension+JH_OtroTrabajo+JH_DeseaTrabajarMas+JH_PrimerTrabajo+
@@ -289,17 +287,18 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge,Ridge_CV,ridge_mse,ri
 
 ##### ELASTIC NET #####
 registerDoParallel(cl)
-alphas=seq(0,1,0.01)
+alphas=seq(0,1,0.1)
 HyperP<-data.frame(alpha=alphas,lambda=NA,FPR_FNR_C=NA)
+lambdas=seq(0,2,0.1)
+EN_CV <-caret::train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = alphas,lambda=lambdas))
+
 for (i in alphas){
   en<-glmnet(x=train_lasso,y=as.matrix(train[,'Ingtotugarr']),alpha=i,nlambda=100,standarize=F)
   lambdas_EN<-en[["lambda"]]
   EN_CV <-train(model_Ing_lasso,data=train,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = i,lambda=lambdas_EN))
   y_hat_EN<-EN_CV$pred%>%
     left_join(Train_y, by = "rowIndex")%>%
-    mutate(P_pred=ifelse(pred<=Lp,1,0))
-  
-  y_hat_EN<-y_hat_EN%>%
+    mutate(P_pred=ifelse(pred<=Lp,1,0))%>%
     group_by(lambda,Resample)%>%
     summarize(FPR_FNR_C=FPR_FNR_C(data.frame(pred=P_pred,obs=Pobre)))%>%
     group_by(lambda)%>%
@@ -355,7 +354,7 @@ registerDoParallel(cl)
 
 lasso<-glmnet(x=as.matrix(train_lasso_li[,-c(1:5)]),y=as.matrix(train_lasso_li[,'Ingtotugarr']),alpha=1,nlambda=1000,standarize=F)
 lambdas_LCV<-lasso[["lambda"]]
-Lasso_LCV <-train(model_Ing_lasso_li,data=train_lasso_li,trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
+Lasso_LCV <-train(model_Ing_lasso_li,data=train_lasso_li,trControl = trainControl(method = "cv", number = 10, savePredictions = 'all', selectionFunction="best"),method = "glmnet", tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
 y_hat_lasso<-Lasso_LCV$pred%>%
   left_join(Train_y, by = "rowIndex")%>%
   mutate(P_pred=ifelse(pred<=Lp,1,0))
@@ -402,69 +401,6 @@ rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_LCV,lasso,Lasso,lasso_fp_fn_r,L
 
 
 ##### REGRESSION TREES RANDOM FOREST #####
-registerDoParallel(cl)
-modelo1 <- decision_tree() %>%
-  set_engine("rpart") %>%
-  set_mode("regression")
-
-modelo1_fit <- fit(modelo1, Ingtotugarr ~ ., data = as.data.frame(train))
-stopCluster(cl)
-
-fancyRpartPlot(modelo1_fit$fit, main = "Árbol sin fine tuning", sub = "")
-
-importancia <- varImp(modelo1_fit$fit)
-importancia <- importancia %>%
-  data.frame() %>%
-  rownames_to_column(var = "Variable") %>%
-  mutate(Porcentaje = Overall/sum(Overall)) %>%
-  filter(Porcentaje > 0) %>%
-  arrange(desc(Porcentaje))
-
-y_hat_insample <- predict(modelo1_fit, as.data.frame(train))%>%
-  rownames_to_column(var = "rowIndex")%>%
-  mutate(rowIndex = as.numeric(rowIndex))%>%
-  left_join(Train_y, by = "rowIndex")%>%
-  mutate(P_pred=ifelse(.pred<=Lp,1,0))
-
-FPR_FNR_C(data.frame(pred=y_hat_insample$P_pred,obs=y_hat_insample$Pobre))
-
-
-######
-forest <- train( model_Ing,  data=train, method='rf', trControl=trainControl(method = "cv", number = 10 ,savePredictions = 'all',selectionFunction="best"),tuneGrid = expand.grid(alpha = 1,lambda=lambdas_LCV))
-ntree=c(100)
-
-######
-
-######
-modelo2 <- decision_tree(
-  cost_complexity = tune(),
-  tree_depth = tune(),
-  min_n = tune()
-) %>%
-  set_engine("rpart") %>%
-  set_mode("regression")
-
-tree_grid <- crossing(
-  cost_complexity = c(0.0001),
-  min_n = c(2, 14, 27),
-  tree_depth = c(4, 8, 16)
-)
-
-registerDoParallel(cl)
-Train<-as.data.frame(train)
-folds <- vfold_cv(Train, strata = Pobre, v = 5)
-
-
-
-modelo2_cv <- tune_grid(
-  modelo2,
-  model_Ing,
-  resamples = folds,
-  grid = tree_grid,
-  metrics = metric_set(fp_fn),
-  control = control_grid(event_level = 'second')
-)
-
 
 
 
@@ -526,19 +462,58 @@ stopCluster(cl)
 
 rm(lambda_fp_fn_r,lambda_mse,lambda_rmse,lambdas_RCV,ridge,Ridge_CV,ridge_mse,ridge_rmse,ridge_fp_fn_r,Metricas,y_hat_R,y_hat_Ridge,HyperP,lambda_fn,lambda_fp,ridge_fpr,ridge_fnr,Ridge,Betas,Nbetas_Ridge)
 
+####### DECISION TREES  #########
+model_Ing<-formula(Pobre~ Clase + DominioBARRANQUILLA+DominioBOGOTA+
+                     DominioBUCARAMANGA+DominioCALI+DominioCARTAGENA+DominioCUCUTA+
+                     DominioFLORENCIA+DominioIBAGUE+DominioMANIZALES+DominioMEDELLIN+
+                     DominioMONTERIA+DominioNEIVA+DominioPASTO+DominioPEREIRA+DominioPOPAYAN+
+                     DominioQUIBDO+DominioRESTOURBANO+DominioRIOHACHA+DominioRURAL+
+                     DominioSANTAMARTA +DominioSINCELEJO+DominioTUNJA+DominioVALLEDUPAR+
+                     DominioVILLAVICENCIO + P5010 + P50902+P50903+P50904+P50905+P50906 + 
+                     P5100 + P5130 + P5140 + Nper + Depto08 + Depto11+Depto13+Depto15+Depto17+
+                     Depto18+Depto19+Depto20+Depto23+ Depto25+Depto27+Depto41+Depto44+Depto47+
+                     Depto50+Depto52+Depto54+Depto63+ Depto66+Depto68+Depto70+Depto73+Depto76+
+                     Hombres + Mujeres + Pareja + Hijos + Nietos + EdadPromedio + SSalud + 
+                     Trabajan + Estudiantes + Subsidios + HorasTrabajo + CotizaPension + 
+                     OtroTrabajo + DeseaTrabajarMas + PrimerTrabajo + DesReciente + 
+                     Ingresos_AlquilerPensiones + Ingresos_Paternidad + OtrosIngresos + 
+                     AyudasEco + Pet + Oc + Des + Ina + Pea + JH_Mujer + JH_Edad + 
+                     JH_RSS_S + JH_NEduc2+JH_NEduc3+JH_NEduc4+JH_NEduc5+JH_NEduc6+JH_NEduc9 + 
+                     JH_Trabaja + JH_HorasTrabajo + JH_CotizaPension + JH_OtroTrabajo + 
+                     JH_DeseaTrabajarMas + JH_PrimerTrabajo + JH_DesReciente + JH_Oc + JH_Des + JH_Ina)
+
+registerDoParallel(cl)
+Train=as.data.frame(train)
+modelo1 <- rpart(model_Ing, data=Train)
+m1_fit<-as.data.frame(predict(modelo1,Train))
+m1_fit<-rename(m1_fit,pred=`predict(modelo1, Train)`)
+
+
+
+# tuning 
+Train$Pobre<-as.factor(Train$Pobre)
+params<-makeClassifTask(data=Train[,-1],target = "Pobre")
+param_grid<-makeParamSet(makeDiscreteParam("maxdepth",values = 1:30))
+control_grid=makeTuneControlGrid()
+resample=makeResampleDesc("CV",iters=3L)
+meassure = acc
+
+tune_param<-tuneParams(learner = 'classif.rpart', task=params,resampling = resample,measures = meassure, par.set = param_grid,control = control_grid,show.info = T)
+result_hyperparam<-generateHyperParsEffectData(tune_param,partial.dep = T)
+library(ggplot2)
+
+ggplot(data=result_hyperparam$data,aes(x=maxdepth,y=acc.test.mean))+
+  geom_line(color='darkblue')
+
+
+
+
+
+
 
 
 ##### RANDOM FOREST #####
 #Hay que definir Ctrl
-Ctrl<-trainControl(method="CV")
-set.seed(1410)
-forest <- train(Pobre~ SSalud+Subsidios,+CotizaPension+P5010, data = train_hogares,
-  method = "rf",
-  trControl = Ctrl,
-  family = "binomial",
-  metric="Sens"
-  #preProcess = c("center", "scale")
-)
 
 ##### RANDOM FOREST BAGGING #####
 
@@ -549,6 +524,12 @@ mod <- train(Pobre ~ ., data = train ,
              method = "glmnet",
              metric = "FPR_FNR_C",
              trControl = trainControl(summaryFunction = FPR_FNR_C))
+
+
+
+
+
+
 
 
 
