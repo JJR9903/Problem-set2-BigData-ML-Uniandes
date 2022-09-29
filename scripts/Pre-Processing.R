@@ -13,14 +13,15 @@ dir_set <- function(){
   if(Sys.info()["user"]=="JuanJose"){
     setwd("/Users/JuanJose/Library/CloudStorage/OneDrive-UniversidaddelosAndes/Uniandes/9 Semestre - 1 PEG/Big Data/Problems Set/Problem-set2-BigData-ML-Uniandes")
   }
- else if(Sys.info()["user"]=="PC-PORTATIL"){
-   setwd("C:/Users/PC-PORTATIL/OneDrive/Documentos/GitHub/Problem-set2-BigData-ML-Uniandes")
- }
+  else if(Sys.info()["user"]=="PC-PORTATIL"){
+    setwd("C:/Users/PC-PORTATIL/OneDrive/Documentos/GitHub/Problem-set2-BigData-ML-Uniandes")
+  }
   else{
-  setwd("C:/Users/Usuario/Documents/GitHub/Problem-set2-BigData-ML-Uniandes")
+    setwd("C:/Users/Usuario/Documents/GitHub/Problem-set2-BigData-ML-Uniandes")
   }
 }
 
+setwd("C:/Users/ja.ospinap/Downloads/")
 dir_set()
 
 pacman:: p_load(tidyverse,skimr,fastDummies,labelled,parallel,doParallel)
@@ -28,6 +29,20 @@ pacman:: p_load(tidyverse,skimr,fastDummies,labelled,parallel,doParallel)
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 registerDoParallel(cl)
+
+
+####IMPORTAR BASES 
+train_hogares <- remove_val_labels(readRDS("stores/data/train_hogares.Rds"))
+train_personas <- remove_val_labels(readRDS("stores/data/train_personas.Rds"))
+test_hogares <- remove_val_labels(readRDS("stores/data/test_hogares.Rds"))
+test_personas <- remove_val_labels(readRDS("stores/data/test_personas.Rds"))
+
+####Nuevas variables
+#% tasa desempleo (des/pea)
+train_h<-train_hogares
+
+
+
 
 ######## FUNCIONES ####
 NotInTest<-function(y){ tryCatch( error = function(cnd) { NA }, y ) }
@@ -51,7 +66,8 @@ settingVariables_Personas<- function(personas){
   personas<-dummy_cols(personas,factor_variables_personas,remove_most_frequent_dummy=F,ignore_na=T,split="_",remove_selected_columns=TRUE)
   
   return(personas)
-} 
+ }
+
 
 settingVariables_Hogares<-function(personas,Hogares){
   sum_Hogar<-personas %>% 
@@ -64,13 +80,10 @@ settingVariables_Hogares<-function(personas,Hogares){
               Ingresos_AlquilerPensiones   = ifelse(any(P7495,na.rm = TRUE),1,0),
               OtrosIngresos= ifelse(any(P7505,na.rm = TRUE),1,0),
               AyudasEco= ifelse(any(P7510s3,na.rm = TRUE),1,0),
-              Pet          = sum(Pet,na.rm = TRUE),
-              Oc           = sum(Oc,na.rm = TRUE),
-              Des          = sum(Des,na.rm = TRUE),
-              Ina          = sum(Ina,na.rm = TRUE),
-              Pea          = sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE),
-              P_o          =(Oc/Pet)
-              )
+              Oc_Des          = sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE),
+              P_o          =(sum(Oc,na.rm = TRUE)/sum(Pet,na.rm = TRUE)),
+              tasa_desempleo=(sum(Des,na.rm = TRUE)/(sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE)))
+    )
   
   JH<-personas %>% 
     filter(P6050_1==1)%>%
@@ -99,13 +112,13 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares<- left_join(Hogares, sum_Hogar,by="id")
   Hogares<- left_join(Hogares, JH,by="id")
   
-
+  
   Hogares[,"Clase"]<-sapply(Hogares[,"Clase"],  function(x) replace(x, x=="2", '0'))
   Hogares[,"Clase"] <- lapply(Hogares[,"Clase"] , as.numeric)
   
   factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
-factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
+  factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')        
   Hogares[,factor_variables_Hogares] <- lapply(Hogares[,factor_variables_Hogares] , factor)
   
   #aplicar log a las variables que estan en pesos
@@ -126,22 +139,18 @@ factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')
   Hogares$P5130[Hogares$P5130==-Inf]<-0
   Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
-  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
+  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
   Hogares$Dominio<-sub(" ", "", Hogares$Dominio)
   Hogares$Depto<-sub(" ", "", Hogares$Depto)
-
+  
   return(Hogares)
 }
 
 
-####IMPORTAR BASES 
-train_hogares <- remove_val_labels(readRDS("stores/data/train_hogares.Rds"))
-train_personas <- remove_val_labels(readRDS("stores/data/train_personas.Rds"))
-test_hogares <- remove_val_labels(readRDS("stores/data/test_hogares.Rds"))
-test_personas <- remove_val_labels(readRDS("stores/data/test_personas.Rds"))
+
 ###### PRE PROCESAMIENTO #### 
 
 ## Personas ##
@@ -178,4 +187,5 @@ df_elastic<-test_hogares_full%>%
 
 saveRDS(train_hogares_full, file = "stores/train_hogares_full.rds")
 saveRDS(test_hogares_full, file = "stores/test_hogares_full.rd")
+
 
