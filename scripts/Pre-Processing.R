@@ -56,25 +56,12 @@ settingVariables_Personas<- function(personas){
 settingVariables_Hogares<-function(personas,Hogares){
   sum_Hogar<-personas %>% 
     group_by(id) %>% 
-    summarize(Hombres       = sum(P6020_1,na.rm = TRUE),
-              Mujeres       = sum(P6020_0,na.rm = TRUE),
-              Pareja        = sum(P6050_2,na.rm = TRUE),
-              Hijos         = sum(P6050_3,na.rm = TRUE),
-              Nietos        = sum(P6050_4,na.rm = TRUE),
-              EdadPromedio  = mean(P6040,na.rm = TRUE),
-              SSalud        = sum(P6090,na.rm = TRUE),
-              Trabajan      = sum(P6240_1,na.rm = TRUE),
-              Estudiantes   = sum(P6240_3,na.rm = TRUE),
-              Subsidios     = ifelse(any(P6585,na.rm = TRUE),1,0),
-              HorasTrabajo  = sum(P6800,na.rm = TRUE),
+    summarize(Subsidios     = ifelse(any(P6585,na.rm = TRUE),1,0),
               CotizaPension = ifelse(any(P6920_1,na.rm = TRUE),1,0),
               Pensionado = ifelse(any(P6920_3,na.rm = TRUE),1,0),
               OtroTrabajo   = sum(P7040,na.rm = TRUE),
               DeseaTrabajarMas   = sum(P7090,na.rm = TRUE),
-              PrimerTrabajo = sum(P7310,na.rm = TRUE),
-              DesReciente   = sum(P7422,na.rm = TRUE),
               Ingresos_AlquilerPensiones   = ifelse(any(P7495,na.rm = TRUE),1,0),
-              Ingresos_Paternidad   = ifelse(any(P7500s3,na.rm = TRUE),1,0),
               OtrosIngresos= ifelse(any(P7505,na.rm = TRUE),1,0),
               AyudasEco= ifelse(any(P7510s3,na.rm = TRUE),1,0),
               Pet          = sum(Pet,na.rm = TRUE),
@@ -139,7 +126,7 @@ factor_variables_Hogares<-c('Dominio','Depto','P5090','JH_NEduc')
   Hogares$P5130[Hogares$P5130==-Inf]<-0
   Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
-  estandarizar<-c('P5140','P5130','P5010','Nper','Hombres','Mujeres','Hijos','Nietos','EdadPromedio','SSalud','Trabajan','Estudiantes','HorasTrabajo','OtroTrabajo','DeseaTrabajarMas','PrimerTrabajo','DesReciente','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
+  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','Pet','Oc','Des','Ina','Pea','JH_Edad','JH_HorasTrabajo')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
@@ -169,29 +156,26 @@ train_hogares$Ingtotugarr=log(train_hogares$Ingtotugarr)
 train_hogares$Ingtotugarr[is.nan(train_hogares$Ingtotugarr)]<-0
 train_hogares$Ingtotugarr[train_hogares$Ingtotugarr==-Inf]<-0
 
+df_elastic<-train_hogares%>%
+  subset(select=-c(Indigente,Nindigentes,Ingpcug))
+
 # altera los valores NA y los cambia por "0"
 train_hogares<-mutate_if(train_hogares, is.numeric, ~replace(., is.na(.), 0))
-test_hogares<-mutate_if(test_hogares, is.numeric, ~replace(., is.na(.), 0))
 
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
 saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 
- df_elastic<-train_hogares%>%
-  subset(select=-c(Indigente,Nindigentes,Ingpcug,Npobres))
- 
- saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
- saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
- 
- 
-
 rm(train_hogares,test_hogares,train_personas,test_personas)
 
+test_hogares_full <- readRDS("stores/test_hogares_full.rds")
+train_hogares_full <- readRDS("stores/train_hogares_full.rds")
 
+df_elastic<-train_hogares_full%>%
+  subset(select=-c(DeseaTrabajarMas, Pobre, JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo,JH_Des, JH_DesReciente))
+df_elastic<-test_hogares_full%>%
+  subset(select=-c(DeseaTrabajarMas, OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo, JH_DesReciente))
 
-
-
-
-
-
+saveRDS(train_hogares_full, file = "stores/train_hogares_full.rds")
+saveRDS(test_hogares_full, file = "stores/test_hogares_full.rd")
 
