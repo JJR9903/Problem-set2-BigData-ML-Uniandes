@@ -181,6 +181,7 @@ False_rate_class <- function (data, lev = NULL, model = NULL) {
   
   c(FR = w, FNR = fn, FPR = fp)
 }
+
 ########### PREDICCIÓN INGRESO ##########
 train<-as.data.frame(Train)
 Train_reg_recipe<- recipe(Ingtotugarr ~ ., data = train)%>%
@@ -190,7 +191,7 @@ Train_reg_recipe<- recipe(Ingtotugarr ~ ., data = train)%>%
 ##### Lasso #####
 set.seed(1234)
 registerDoParallel(cl)
-lasso<-glmnet(x=Train_x,y=Train_y[,'Ingtotugarr'],alpha=1,nlambda=100,standarize=F)
+lasso<-glmnet(x=Train_x,y=Train_y[,'Ingtotugarr'],alpha=1,nlambda=10,standarize=F)
 lambdas<-lasso[["lambda"]]
 Lasso_CV <-caret::train( Train_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneGrid = expand.grid(alpha = 1,lambda=lambdas))
 
