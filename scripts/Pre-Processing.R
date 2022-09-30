@@ -180,12 +180,12 @@ rm(train_hogares,test_hogares,train_personas,test_personas)
 test_hogares_full <- readRDS("stores/test_hogares_full.rds")
 train_hogares_full <- readRDS("stores/train_hogares_full.rds")
 
-df_elastic<-train_hogares_full%>%
-  subset(select=-c(DeseaTrabajarMas, Pobre, JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo,JH_Des, JH_DesReciente))
-df_elastic<-test_hogares_full%>%
+df_elastic_train<-train_hogares_full%>%
+  subset(select=-c(DeseaTrabajarMas, JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo,JH_Des, JH_DesReciente))
+df_elastic_test<-test_hogares_full%>%
   subset(select=-c(DeseaTrabajarMas, OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo, JH_DesReciente))
 
-saveRDS(train_hogares_full, file = "stores/train_hogares_full.rds")
-saveRDS(test_hogares_full, file = "stores/test_hogares_full.rd")
+saveRDS(df_elastic_train, file = paste0(getwd(),"/stores/train_hogares_full_.rds"))
+saveRDS(df_elastic_test, file = "stores/test_hogares_full_.rd")
 
 
