@@ -73,10 +73,7 @@ settingVariables_Hogares<-function(personas,Hogares){
   sum_Hogar<-personas %>% 
     group_by(id) %>% 
     summarize(Subsidios     = ifelse(any(P6585,na.rm = TRUE),1,0),
-              CotizaPension = ifelse(any(P6920_1,na.rm = TRUE),1,0),
-              Pensionado = ifelse(any(P6920_3,na.rm = TRUE),1,0),
-              OtroTrabajo   = sum(P7040,na.rm = TRUE),
-              DeseaTrabajarMas   = sum(P7090,na.rm = TRUE),
+              CotizaPension =sum(P6920_1,na.rm = TRUE),
               Ingresos_AlquilerPensiones   = ifelse(any(P7495,na.rm = TRUE),1,0),
               OtrosIngresos= ifelse(any(P7505,na.rm = TRUE),1,0),
               AyudasEco= ifelse(any(P7510s3,na.rm = TRUE),1,0),
@@ -93,14 +90,8 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_Edad2         = mean(P6040^2,na.rm = TRUE),
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
-              JH_Trabaja       = ifelse(is.na(P6240_1),0,ifelse(P6240_1==1,1,0)),
-              JH_HorasTrabajo  = ifelse(is.na(P6800),0,P6800),
               JH_CotizaPension = ifelse(is.na(P6920_1),0,P6920_1),
               JH_Pensionado    = ifelse(is.na(P6920_3),0,P6920_3),
-              JH_OtroTrabajo   = ifelse(is.na(P7040),0,P7040),
-              JH_DeseaTrabajarMas   = ifelse(is.na(P7090),0,P7090),
-              JH_PrimerTrabajo = ifelse(is.na(P7310),0,P7310),
-              JH_DesReciente   = ifelse(is.na(P7422),0,P7422),
               JH_Oc            = ifelse(is.na(Oc),0,Oc),
               JH_Des           = ifelse(is.na(Des),0,Des),
               JH_Ina           = ifelse(is.na(Ina),0,Ina),
@@ -139,7 +130,7 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares$P5130[Hogares$P5130==-Inf]<-0
   Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
-  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad','JH_HorasTrabajo')
+  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
@@ -181,9 +172,7 @@ test_hogares_full <- readRDS("stores/test_hogares_full.rds")
 train_hogares_full <- readRDS("stores/train_hogares_full.rds")
 
 df_elastic_train<-train_hogares_full%>%
-  subset(select=-c(DeseaTrabajarMas, JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo,JH_Des, JH_DesReciente))
-df_elastic_test<-test_hogares_full%>%
-  subset(select=-c(DeseaTrabajarMas, OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo, JH_DesReciente))
+  subset(select=-c( JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,JH_Des))
 
 saveRDS(df_elastic_train, file = paste0(getwd(),"/stores/train_hogares_full_.rds"))
 saveRDS(df_elastic_test, file = "stores/test_hogares_full_.rd")
