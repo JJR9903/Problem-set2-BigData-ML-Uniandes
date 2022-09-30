@@ -94,12 +94,8 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
               JH_Trabaja       = ifelse(is.na(P6240_1),0,ifelse(P6240_1==1,1,0)),
-              JH_HorasTrabajo  = ifelse(is.na(P6800),0,P6800),
               JH_CotizaPension = ifelse(is.na(P6920_1),0,P6920_1),
               JH_Pensionado    = ifelse(is.na(P6920_3),0,P6920_3),
-              JH_OtroTrabajo   = ifelse(is.na(P7040),0,P7040),
-              JH_DeseaTrabajarMas   = ifelse(is.na(P7090),0,P7090),
-              JH_PrimerTrabajo = ifelse(is.na(P7310),0,P7310),
               JH_DesReciente   = ifelse(is.na(P7422),0,P7422),
               JH_Oc            = ifelse(is.na(Oc),0,Oc),
               JH_Des           = ifelse(is.na(Des),0,Des),
@@ -139,7 +135,7 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares$P5130[Hogares$P5130==-Inf]<-0
   Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
-  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad','JH_HorasTrabajo')
+  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad',)
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
   
