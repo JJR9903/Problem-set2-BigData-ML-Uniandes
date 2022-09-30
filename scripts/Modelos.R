@@ -30,16 +30,15 @@ set.seed(1234)
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 
-train_hogares <- readRDS("stores/train_hogares_full.Rds")
+train_hogares <- readRDS("stores/train_hogares_full_.Rds")
 
 
 ###################### ENTRENAMIENTO DE LOS MODELOS ############################
 #hay que modificar esta con las nuevas variables 
-Train<-model.matrix(object = ~ Ingtotugarr + Pobre + Lp + Npersug + Clase + P5010 + P5090 + P5100 + P5130 + P5140 + 
-                      Depto + Hombres + Mujeres + Pareja + Hijos + Nietos + EdadPromedio + SSalud +  Subsidios + 
-                      HorasTrabajo + CotizaPension + Ingresos_AlquilerPensiones + OtrosIngresos + AyudasEco + 
-                      Pet + Oc + Des + Ina + Pea + JH_Mujer + JH_Edad + JH_RSS_S + JH_NEduc +  JH_CotizaPension + 
-                      JH_DesReciente + JH_Oc + JH_Des + JH_Ina-1,data=train_hogares)
+Train<-model.matrix(object = ~ Ingtotugarr + Lp + Pobre+Npersug + Clase + P5010 + P5090 + P5100 + P5130 + P5140 + 
+                       + Ingresos_AlquilerPensiones + + AyudasEco + Subsidios+
+                      Oc_Des + tasa_desempleo + P_o + JH_Mujer + JH_Edad +JH_RSS_S + JH_NEduc +  JH_CotizaPension + 
+                       JH_Oc +  JH_Ina-1,data=train_hogares)
 
 
 Train_y<-Train[,c('Lp','Pobre','Ingtotugarr')]
@@ -195,6 +194,7 @@ lasso<-glmnet(x=Train_x,y=Train_y[,'Ingtotugarr'],alpha=1,nlambda=10,standarize=
 lambdas<-lasso[["lambda"]]
 Lasso_CV <-caret::train( Train_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneGrid = expand.grid(alpha = 1,lambda=lambdas))
 
+
 metricas_HyperP_l <- data.frame(Modelo = "Lasso", 
                                 "lambda" = Lasso_CV[["bestTune"]][["lambda"]], 
                                 "alpha" = Lasso_CV[["bestTune"]][["alpha"]],
@@ -208,8 +208,9 @@ lasso<-glmnet(x=Train_x, y=Train_y[,'Ingtotugarr'], alpha=1, lambda= Lasso_CV[["
 Betas<-coef(lasso,  exact = FALSE,x=x, y=y)
 Betas<-Betas@Dimnames[[1]][which(Betas!= 0)]
 Betas=Betas[Betas!='(Intercept)']
+ 
+stargazer(metricas_HyperP_l,type="text",summary=F,out = "/stores/views/LassoReg.txt")
 
-stargazer(metricas_HyperP_l,type="text",summary=F,out = "views/LassoReg.txt")
 
 metricas_HyperP_l%>%
   kbl()%>%
@@ -220,7 +221,7 @@ betas <- sapply(Betas, function(i) { paste0(i, "+") })
 betas <- paste(betas, collapse = '')
 betas  <- substr(betas, 1, nchar(betas)-1)
 
-model_Ing_lasso<-formula(paste0("Ingtotugarr~",betas))
+model_Ing_lasso<-formula(paste0("Ingtotugarr~","Lp+Pobre+",betas))
 Train_xlasso<-Train_x[,Betas]    
 rm(betas,Betas,lambdas,lasso,Lasso_CV) 
 
@@ -230,7 +231,7 @@ rm(betas,Betas,lambdas,lasso,Lasso_CV)
 set.seed(1234)
 Ridge<-glmnet(x=Train_x, y=Train_y[,'Ingtotugarr'],alpha=0,nlambda=100,standarize=F)
 lambdas<-Ridge[["lambda"]]
-Ridge_CV <-caret::train( Train_lasso_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneGrid = expand.grid(alpha = 0,lambda=lambdas))
+Ridge_CV <-caret::train( Train_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneGrid = expand.grid(alpha = 0,lambda=lambdas))
 
 metricas_HyperP_r <- data.frame(Modelo = "Ridge", 
                                 "lambda" = Ridge_CV[["bestTune"]][["lambda"]], 
@@ -266,11 +267,11 @@ lambdas<-Ridge[["lambda"]]
 Ridge_CV <-caret::train( Train_lasso_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneGrid = expand.grid(alpha = 0,lambda=lambdas))
 
 metricas_HyperP_rl <- data.frame(Modelo = "Ridge - lasso variables", 
-                                "lambda" = Ridge_CV[["bestTune"]][["lambda"]], 
-                                "alpha" = Ridge_CV[["bestTune"]][["alpha"]],
-                                "FNR" = mean(Ridge_CV[["results"]][["FNR"]]),
-                                "FPR" = mean(Ridge_CV[["results"]][["FPR"]]),
-                                "FR" = mean(Ridge_CV[["results"]][["FR"]])   )
+                                 "lambda" = Ridge_CV[["bestTune"]][["lambda"]], 
+                                 "alpha" = Ridge_CV[["bestTune"]][["alpha"]],
+                                 "FNR" = mean(Ridge_CV[["results"]][["FNR"]]),
+                                 "FPR" = mean(Ridge_CV[["results"]][["FPR"]]),
+                                 "FR" = mean(Ridge_CV[["results"]][["FR"]])   )
 
 stargazer(metricas_HyperP_rl,type="text",summary=F,out = "views/RidgeLasso_Reg.txt")
 
@@ -288,13 +289,13 @@ set.seed(1234)
 EN_CV    <-caret::train( Train_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10, savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneLength = 25)
 
 metricas_HyperP_en <- data.frame(Modelo = "Ridge", 
-                                "lambda" = EN_CV[["bestTune"]][["lambda"]], 
-                                "alpha" = EN_CV[["bestTune"]][["alpha"]],
-                                "FNR" = mean(EN_CV[["results"]][["FNR"]]),
-                                "FPR" = mean(EN_CV[["results"]][["FPR"]]),
-                                "FR" = mean(EN_CV[["results"]][["FR"]])   )
+                                 "lambda" = EN_CV[["bestTune"]][["lambda"]], 
+                                 "alpha" = EN_CV[["bestTune"]][["alpha"]],
+                                 "FNR" = mean(EN_CV[["results"]][["FNR"]]),
+                                 "FPR" = mean(EN_CV[["results"]][["FPR"]]),
+                                 "FR" = mean(EN_CV[["results"]][["FR"]])   )
 
-stargazer(metricas_HyperP_en,type="text",summary=F,out = "views/ElasticNetReg.txt")
+ stargazer(metricas_HyperP_en,type="text",summary=F,out = "views/ElasticNetReg.txt")
 
 metricas_HyperP_en%>%
   kbl()%>%
@@ -320,11 +321,11 @@ Train_EN_li_reg_recipe<- recipe(Ingtotugarr~JH_Edad2+JH_Edad+ Depto08 + Depto11+
 EN_li_CV <-caret::train( Train_EN_li_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10, savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneLength = 25)
 
 metricas_HyperP_enli <- data.frame(Modelo = "Ridge", 
-                                 "lambda" = EN_li_CV[["bestTune"]][["lambda"]], 
-                                 "alpha" = EN_li_CV[["bestTune"]][["alpha"]],
-                                 "FNR" = mean(EN_li_CV[["results"]][["FNR"]]),
-                                 "FPR" = mean(EN_li_CV[["results"]][["FPR"]]),
-                                 "FR" = mean(EN_li_CV[["results"]][["FR"]])   )
+                                   "lambda" = EN_li_CV[["bestTune"]][["lambda"]], 
+                                   "alpha" = EN_li_CV[["bestTune"]][["alpha"]],
+                                   "FNR" = mean(EN_li_CV[["results"]][["FNR"]]),
+                                   "FPR" = mean(EN_li_CV[["results"]][["FPR"]]),
+                                   "FR" = mean(EN_li_CV[["results"]][["FR"]])   )
 
 stargazer(metricas_HyperP_enli,type="text",summary=F,out = "views/ElasticNet_lit_Reg.txt")
 
@@ -346,11 +347,11 @@ tunegrid <- expand.grid(.mtry=sqrt(ncol(Train_x)))
 randomForest <- train(Train_reg_recipe, train, method='rf', metric="FR",maximaize= FALSE,tuneGrid=tunegrid, trControl=control)
 
 metricas_HyperP_RF <- data.frame(Modelo = "Ridge", 
-                                   "lambda" = randomForest[["bestTune"]][["lambda"]], # cambiar por sus metricas
-                                   "alpha" = randomForest[["bestTune"]][["alpha"]],#
-                                   "FNR" = mean(randomForest[["results"]][["FNR"]]),
-                                   "FPR" = mean(randomForest[["results"]][["FPR"]]),
-                                   "FR" = mean(randomForest[["results"]][["FR"]])   )
+                                 "lambda" = randomForest[["bestTune"]][["lambda"]], # cambiar por sus metricas
+                                 "alpha" = randomForest[["bestTune"]][["alpha"]],#
+                                 "FNR" = mean(randomForest[["results"]][["FNR"]]),
+                                 "FPR" = mean(randomForest[["results"]][["FPR"]]),
+                                 "FR" = mean(randomForest[["results"]][["FR"]])   )
 
 stargazer(metricas_HyperP_RF,type="text",summary=F,out = "views/RandomForest_Reg.txt")
 
@@ -369,11 +370,11 @@ xgb = train(Train_reg_recipe, train,trControl = xgb_trcontrol,tuneGrid = xgbGrid
 
 
 metricas_HyperP_xgb <- data.frame(Modelo = "Ridge", 
-                                 "lambda" = xgb[["bestTune"]][["lambda"]], # cambiar por sus metricas
-                                 "alpha" = xgb[["bestTune"]][["alpha"]],#
-                                 "FNR" = mean(xgb[["results"]][["FNR"]]),
-                                 "FPR" = mean(xgb[["results"]][["FPR"]]),
-                                 "FR" = mean(xgb[["results"]][["FR"]])   )
+                                  "lambda" = xgb[["bestTune"]][["lambda"]], # cambiar por sus metricas
+                                  "alpha" = xgb[["bestTune"]][["alpha"]],#
+                                  "FNR" = mean(xgb[["results"]][["FNR"]]),
+                                  "FPR" = mean(xgb[["results"]][["FPR"]]),
+                                  "FR" = mean(xgb[["results"]][["FR"]])   )
 
 stargazer(metricas_HyperP_xgb,type="text",summary=F,out = "views/XGB_Reg.txt")
 
@@ -503,7 +504,7 @@ test <- train_hogares[-train_ind, ]
 
 ##OverSample
 train_hogares$Pobre<- factor(train_hogares$Pobre)
-  #Se debe poner el modelo que se usa
+#Se debe poner el modelo que se usa
 train_h2 <- recipe(Pobre ~ P5000+P5010+SSalud+Trabajan+Estudiantes+CotizaPension+DeseaTrabajarMas+AyudasEco, data = train_hogares) %>%
   themis::step_smote(Pobre, over_ratio = 1) %>%
   prep() %>%
@@ -525,11 +526,11 @@ nrow(train_h3)
 nrow(train_hogares)
 
 ##Optimizar umbral de decisión
-  
-  
- #Optimizador
+
+
+#Optimizador
 thresholds <- seq(0.1, 0.9, length.out = 100)
-  opt_t<-dat.frame()
+opt_t<-dat.frame()
 for (t in thresholds) {
   y_pred_t <- as.numeric(probs_outsample1 > t)
   f1_t <- F1_Score(y_true = train_hogares$Pobre, y_pred = y_pred_t,
@@ -539,4 +540,3 @@ for (t in thresholds) {
 }
 
 mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
-
