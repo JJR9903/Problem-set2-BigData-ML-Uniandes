@@ -17,11 +17,11 @@ dir_set <- function(){
     setwd("C:/Users/PC-PORTATIL/OneDrive/Documentos/GitHub/Problem-set2-BigData-ML-Uniandes")
   }
   else{
-    setwd("C:/Users/Usuario/Documents/GitHub/Problem-set2-BigData-ML-Uniandes")
+    setwd("C:/Users/ja.ospinap/Downloads/")
   }
 }
 
-setwd("C:/Users/ja.ospinap/Downloads/")
+
 dir_set()
 
 pacman:: p_load(tidyverse,skimr,fastDummies,labelled,parallel,doParallel)
@@ -73,14 +73,12 @@ settingVariables_Hogares<-function(personas,Hogares){
   sum_Hogar<-personas %>% 
     group_by(id) %>% 
     summarize(Subsidios     = ifelse(any(P6585,na.rm = TRUE),1,0),
-              CotizaPension = ifelse(any(P6920_1,na.rm = TRUE),1,0),
-              Pensionado = ifelse(any(P6920_3,na.rm = TRUE),1,0),
-              OtroTrabajo   = sum(P7040,na.rm = TRUE),
-              DeseaTrabajarMas   = sum(P7090,na.rm = TRUE),
+              CotizaPension = sum(P6920_1,na.rm = TRUE),
+              Pensionado = sum(P6920_3,na.rm = TRUE),
               Ingresos_AlquilerPensiones   = ifelse(any(P7495,na.rm = TRUE),1,0),
               OtrosIngresos= ifelse(any(P7505,na.rm = TRUE),1,0),
               AyudasEco= ifelse(any(P7510s3,na.rm = TRUE),1,0),
-              Oc_Des          = sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE),
+              TGP= (sum(Ina,na.rm = TRUE)/sum(Pet,na.rm = TRUE)),
               P_o          =(sum(Oc,na.rm = TRUE)/sum(Pet,na.rm = TRUE)),
               tasa_desempleo=(sum(Des,na.rm = TRUE)/(sum(Oc,na.rm = TRUE)+sum(Des,na.rm = TRUE)))
     )
@@ -93,18 +91,11 @@ settingVariables_Hogares<-function(personas,Hogares){
               JH_Edad2         = mean(P6040^2,na.rm = TRUE),
               JH_RSS_S         = ifelse(is.na(P6100_3),0,P6100_3),
               JH_NEduc         = P6210,
-              JH_Trabaja       = ifelse(is.na(P6240_1),0,ifelse(P6240_1==1,1,0)),
-              JH_HorasTrabajo  = ifelse(is.na(P6800),0,P6800),
               JH_CotizaPension = ifelse(is.na(P6920_1),0,P6920_1),
               JH_Pensionado    = ifelse(is.na(P6920_3),0,P6920_3),
-              JH_OtroTrabajo   = ifelse(is.na(P7040),0,P7040),
-              JH_DeseaTrabajarMas   = ifelse(is.na(P7090),0,P7090),
-              JH_PrimerTrabajo = ifelse(is.na(P7310),0,P7310),
-              JH_DesReciente   = ifelse(is.na(P7422),0,P7422),
               JH_Oc            = ifelse(is.na(Oc),0,Oc),
               JH_Des           = ifelse(is.na(Des),0,Des),
-              JH_Ina           = ifelse(is.na(Ina),0,Ina),
-              
+              JH_Ina           = ifelse(is.na(Ina),0,Ina)
               
     )
   
@@ -139,12 +130,12 @@ settingVariables_Hogares<-function(personas,Hogares){
   Hogares$P5130[Hogares$P5130==-Inf]<-0
   Hogares$P5140[Hogares$P5140==-Inf]<-0
   #estandarizar 
-  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','Oc_Des','JH_Edad','JH_HorasTrabajo')
+  estandarizar<-c('JH_Edad2', 'P5140','P5130','P5010','P_o','tasa_desempleo','TGP','JH_Edad')
   Hogares<- Hogares %>%           
     mutate_at(estandarizar, ~(scale(.) %>% as.vector))
-  
-  Hogares$Dominio<-sub(" ", "", Hogares$Dominio)
+
   Hogares$Depto<-sub(" ", "", Hogares$Depto)
+  
   
   return(Hogares)
 }
@@ -165,27 +156,19 @@ train_hogares$Ingtotugarr=log(train_hogares$Ingtotugarr)
 train_hogares$Ingtotugarr[is.nan(train_hogares$Ingtotugarr)]<-0
 train_hogares$Ingtotugarr[train_hogares$Ingtotugarr==-Inf]<-0
 
-df_elastic<-train_hogares%>%
+train_hogares<-train_hogares%>%
   subset(select=-c(Indigente,Nindigentes,Ingpcug))
 
 # altera los valores NA y los cambia por "0"
 train_hogares<-mutate_if(train_hogares, is.numeric, ~replace(., is.na(.), 0))
 
+test_hogares<-subset(test_hogares,select=-c(Dominio,Li,Fex_dpto,Fex_c))
+train_hogares<-subset(train_hogares,select=-c(Dominio,Li,Fex_dpto,Fex_c))
 
 saveRDS(train_hogares, file = "stores/train_hogares_full.rds")
 saveRDS(test_hogares, file = "stores/test_hogares_full.rds")
 
 rm(train_hogares,test_hogares,train_personas,test_personas)
 
-test_hogares_full <- readRDS("stores/test_hogares_full.rds")
-train_hogares_full <- readRDS("stores/train_hogares_full.rds")
-
-df_elastic<-train_hogares_full%>%
-  subset(select=-c(DeseaTrabajarMas, Pobre, JH_Pensionado,OtrosIngresos,Indigente, Depto, Fex_dpto,CotizaPension,OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo,JH_Des, JH_DesReciente))
-df_elastic<-test_hogares_full%>%
-  subset(select=-c(DeseaTrabajarMas, OtroTrabajo, JH_OtroTrabajo, JH_DeseaTrabajarMas, JH_PrimerTrabajo, JH_DesReciente))
-
-saveRDS(train_hogares_full, file = "stores/train_hogares_full.rds")
-saveRDS(test_hogares_full, file = "stores/test_hogares_full.rd")
 
 
