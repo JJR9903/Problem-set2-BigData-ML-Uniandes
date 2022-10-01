@@ -299,20 +299,24 @@ metricas_HyperP<-rbind(metricas_HyperP,metricas_HyperP_en)
 
 rm(lambdas,EN_CV) 
 
+  
+  ###edada al cuadrado 
+
+train$JH_Edad2<-(train$JH_Edad)^2
 
 ##### EN con variables recomendadas por literatura #####
 set.seed(1234)
 
-Train_EN_li_reg_recipe<- recipe(Ingtotugarr~JH_Edad2+JH_Edad+ Depto08 + Depto11+Depto13+Depto15+Depto17+
-                                  Depto18+Depto19+Depto20+Depto23+ Depto25+Depto27+Depto41+Depto44+Depto47+
-                                  Depto50+Depto52+Depto54+Depto63+ Depto66+Depto68+Depto70+Depto73+Depto76+
-                                  Hombres + Mujeres+ SSalud+Clase+ P_o + JH_RSS_S + P5100+P50902+P50903+P50904+P50905+P50906 +CotizaPension, data = train)%>%
+train_2<-train%>%
+  select(Ingtotugarr,JH_Edad2,JH_Edad,Pobre,Clase,Lp,P_o,JH_RSS_S,P5100,P50902,P50903,P50904,P50905,P50906,CotizaPension)
+
+
+Train_EN_li_reg_recipe<- recipe(Ingtotugarr ~ ., data = train_2)%>%
   add_role(Lp, new_role = "performance var")%>%
   add_role(Pobre, new_role = "performance var")
 
-#li_va<-(JH_Edad2,JH_Edad, Depto08 , Depto11,Depto13,Depto15,Depto17,Depto18,Depto19,Depto20+Depto23, Depto25,Depto27,Depto41,Depto44,Depto47,Depto50,Depto52,Depto54,Depto63,Depto66,Depto68,Depto70,Depto73,Depto76,Hombres, Mujeres, SSalud,Clase, P_o , JH_RSS_S , P5100,P50902,P50903,P50904,P50905,P50906 ,CotizaPension)
 
-EN_li_CV <-caret::train( Train_EN_li_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10, savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneLength = 25)
+EN_li_CV <-caret::train( Train_EN_li_reg_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 5, savePredictions = 'none',verboseIter=T,summaryFunction = False_rate_reg),metric="FR",maximaize= FALSE, tuneLength = 25)
 
 metricas_HyperP_enli <- data.frame(Modelo = "Ridge", 
                                    "lambda" = EN_li_CV[["bestTune"]][["lambda"]], 
