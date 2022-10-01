@@ -30,14 +30,14 @@ set.seed(1234)
 n_cores<-detectCores()
 cl <- makePSOCKcluster(n_cores - 1) 
 
-train_hogares <- readRDS("stores/train_hogares_full_.Rds")
+train_hogares <- readRDS("stores/train_hogares_full.Rds")
 
 
 ###################### ENTRENAMIENTO DE LOS MODELOS ############################
 #hay que modificar esta con las nuevas variables 
 Train<-model.matrix(object = ~ Ingtotugarr + Lp + Pobre+Npersug + Clase + P5010 + P5090 + P5100 + P5130 + P5140 + 
                        + Ingresos_AlquilerPensiones + + AyudasEco + Subsidios+
-                      Oc_Des + tasa_desempleo + P_o + JH_Mujer + JH_Edad +JH_RSS_S + JH_NEduc +  JH_CotizaPension + 
+                      TGP+ tasa_desempleo + P_o + JH_Mujer + JH_Edad +JH_RSS_S + JH_NEduc +  JH_CotizaPension + 
                        JH_Oc +  JH_Ina-1,data=train_hogares)
 
 
@@ -113,60 +113,54 @@ False_rate_reg <- function (data, lev = NULL, model = NULL) {
   c(FR = w, FNR = fn, FPR = fp)
 }
 
-
-
-
-False_rate_class <- function (data, lev = NULL, model = NULL) {
+False_rate_class <- function (data, lev = c('NoPobre','Pobre'), model = NULL) {
   
   FR <-function(pred,P){#FR = FNR*0.75 + FPR*0.25 = (fn/(fn+tp)*0.75)+(fp/(fp+tn)*0.25)
-    P_pred=ifelse(pred>=0.5,1,0)
-    if(length(unique(P))==length(unique(P_pred))){ #FR
-      ((table(P_pred,P)['0','1']/(table(P_pred,P)['0','1']+table(P_pred,P)['1','1']))*0.75)+
-        ((table(P_pred,P)['1','0']/(table(P_pred,P)['1','0']+table(P_pred,P)['0','0']))*0.25)
-    } else if (length(unique(P_pred))==2 & length(unique(P))==1){
+    if(length(unique(P))==length(unique(pred))){ #FR
+      ((table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre']+table(pred,P)['Pobre','Pobre']))*0.75)+
+        ((table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre']+table(pred,P)['NoPobre','NoPobre']))*0.25)
+    } else if (length(unique(pred))==2 & length(unique(P))==Pobre){
       if (unique(P)==0){#FPR
-        ((table(P_pred,P)['1','0']/(table(P_pred,P)['1','0']+table(P_pred,P)['0','0']))*0.25)
+        ((table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre']+table(pred,P)['NoPobre','NoPobre']))*0.25)
       } else if (unique(P)==1){#FNR
-        ((table(P_pred,P)['0','1']/(table(P_pred,P)['0','1']+table(P_pred,P)['1','1']))*0.75)
-      } else if (length(unique(P_pred))==1 & length(unique(P))==2){
-        if (unique(P_pred)==0){#FNR
-          (table(P_pred,P)['0','1']/(table(P_pred,P)['0','1'])*0.75)
-        } else if (unique(P_pred)==1){#FPR
-          (table(P_pred,P)['1','0']/(table(P_pred,P)['1','0'])*0.25)  
+        ((table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre']+table(pred,P)['Pobre','Pobre']))*0.75)
+      } else if (length(unique(pred))==1 & length(unique(P))==2){
+        if (unique(pred)==0){#FNR
+          (table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre'])*0.75)
+        } else if (unique(pred)==1){#FPR
+          (table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre'])*0.25)  
         }
       }
     }
   }
   
   FPR <- function (pred,P){ #FPR = fp/(fp+tn)
-    P_pred=ifelse(pred>=0.5,1,0)
-    if(length(unique(P))==length(unique(P_pred))){ #FPR
-      (table(P_pred,P)['1','0']/(table(P_pred,P)['1','0']+table(P_pred,P)['0','0']))
-    } else if (length(unique(P_pred))==2 & length(unique(P))==1){
+    if(length(unique(P))==length(unique(pred))){ #FPR
+      (table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre']+table(pred,P)['NoPobre','NoPobre']))
+    } else if (length(unique(pred))==2 & length(unique(P))==1){
       if (unique(P)==0){#FPR
-        (table(P_pred,P)['1','0']/(table(P_pred,P)['1','0']+table(P_pred,P)['0','0']))
+        (table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre']+table(pred,P)['NoPobre','NoPobre']))
       } else if (unique(P)==1){#FNR
-      } else if (length(unique(P_pred))==1 & length(unique(P))==2){
-        if (unique(P_pred)==0){#FNR
-        } else if (unique(P_pred)==1){#FPR
-          (table(P_pred,P)['1','0']/(table(P_pred,P)['1','0']))
+      } else if (length(unique(pred))==1 & length(unique(P))==2){
+        if (unique(pred)==0){#FNR
+        } else if (unique(pred)==1){#FPR
+          (table(pred,P)['Pobre','NoPobre']/(table(pred,P)['Pobre','NoPobre']))
         }
       }
     }
   }
   
   FNR <- function (pred,P){ #FNR = fn/(fn+tp)
-    P_pred=ifelse(pred>=0.5,1,0)
-    if(length(unique(P))==length(unique(P_pred))){ #FNR
-      table(P_pred,P)['0','1']/(table(P_pred,P)['0','1']+table(P_pred,P)['1','1'])
-    } else if (length(unique(P_pred))==2 & length(unique(P))==1){
+    if(length(unique(P))==length(unique(pred))){ #FNR
+      table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre']+table(pred,P)['Pobre','Pobre'])
+    } else if (length(unique(pred))==2 & length(unique(P))==1){
       if (unique(P)==0){#FPR
       } else if (unique(P)==1){#FNR
-        ((table(P_pred,P)['0','1']/(table(P_pred,P)['0','1']+table(P_pred,P)['1','1']))*0.75)
-      } else if (length(unique(P_pred))==1 & length(unique(P))==2){
-        if (unique(P_pred)==0){#FNR
-          table(P_pred,P)['0','1']/(table(P_pred,P)['0','1'])
-        } else if (unique(P_pred)==1){#FPR
+        ((table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre']+table(pred,P)['Pobre','Pobre']))*0.75)
+      } else if (length(unique(pred))==1 & length(unique(P))==2){
+        if (unique(pred)==0){#FNR
+          table(pred,P)['NoPobre','Pobre']/(table(pred,P)['NoPobre','Pobre'])
+        } else if (unique(pred)==1){#FPR
         }
       }
     }
@@ -398,36 +392,37 @@ tree <- train(x=Train_x,y=Train_y[,'Ingtotugarr'], method = "rpart",trControl = 
 
 
 
-
-
-
-
-
-
-
 ########### PREDICCIÓN POBREZA ##########
-Train_clas_recipe<- recipe(Pobre ~ ., data = train)
+
+train_C<-as.data.frame(Train)
+train_C$Pobre=as.factor(train_C$Pobre)
+levels(train_C$Pobre)<-c('NoPobre','Pobre')
+
+pred<-c(1,0,1,0,1,0,1,0,0,0)
+p<-c(1,0,0,0,1,1,1,0,0,0)
+data<-data.frame(pred,p)
+data$pred=as.factor(data$pred)
+data$p=as.factor(data$p)
+levels(train_C)<-c('NoPobre','Pobre')
+
+False_rate_class()
+
+Train_clas_recipe<- recipe(Pobre ~ ., data = train_C)
 
 ##### LOGIT #####
 set.seed(1234)
-logit<-glmnet(x=Train_x,y=Train_y[,'Pobre'],alpha=1,nlambda=10,standarize=F,family = "binomial")
+logit<-glmnet(x=Train_x,y=Train_y[,'Pobre'],alpha=1,nlambda=3,standarize=F,family = "binomial")
 lambdas<-logit[["lambda"]]
-LOGIT_CV <-caret::train( Train_clas_recipe, train, method = "glmnet", trControl = trainControl(method = "cv", number = 10 ,savePredictions = 'final',verboseIter=T,summaryFunction = False_rate_class),metric="FR",maximaize= FALSE,family = "binomial", tuneGrid = expand.grid(alpha = 1,lambda=lambdas))
-
-
-##### LOGIT-LASSO #####
-
-
-
-
-
+#LOGIT_CV <-caret::train( Pobre ~ ., data = Train, method = "glmnet", trControl = trainControl(method = "cv", number = 2 ,savePredictions = 'final',verboseIter=T,summaryFunction = False_rate_class),metric="FR",maximaize= FALSE,family = "binomial", tuneGrid = expand.grid(alpha = 1,lambda=lambdas))
+LOGIT_CV<-caret::train(Train_clas_recipe, train_C ,method='glmnet',trCLontrol=trainControl(method='none',number=1,summaryFunction = False_rate_class),metric='FR',tuneGrid = expand.grid(alpha = 1,lambda=lambdas))
 
 
 ##### Random Forest #####
 set.seed(1234)
-control = trainControl(method = "cv",number = 10,  allowParallel = TRUE,verboseIter = TRUE,returnData = FALSE,summaryFunction = False_rate_reg)
-tunegrid <- expand.grid(.mtry=sqrt(ncol(Train_x)))
-randomForest <- train(Train_reg_recipe, train, method='rf', metric="FR",maximaize= FALSE,tuneGrid=tunegrid, trControl=control)
+control = trainControl(method = "cv",number = 5,  allowParallel = TRUE,verboseIter = TRUE,returnData = FALSE,summaryFunction = False_rate_class)
+tunegrid <- expand.grid(.mtry=sqrt(30))
+randomForest<-caret::train(Train_clas_recipe,train_C, method='rf',metric='FR',tungeGrid=tunegrid,trControl=control)
+
 
 metricas_HyperP_RF <- data.frame(Modelo = "Ridge", 
                                  "lambda" = randomForest[["bestTune"]][["lambda"]], # cambiar por sus metricas
