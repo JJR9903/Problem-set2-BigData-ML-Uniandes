@@ -544,3 +544,41 @@ for (t in thresholds) {
 }
 
 mejor_t <-  opt_t$t[which(opt_t$F1 == max(opt_t$F1, na.rm = T))]
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ #############################################################################
+##### Random Forest #####
+#set.seed(1234)
+control = trainControl(method = "cv",number = 100,  allowParallel = TRUE,verboseIter = TRUE,returnData = FALSE,summaryFunction = False_rate_reg)
+tunegrid <- expand.grid(.mtry=sqrt(ncol(Train_x)))
+randomForest <- train(Train_reg_recipe, train, method='rf', metric="FR",maximaize= FALSE,tuneGrid=tunegrid, trControl=control)
+
+metricas_HyperP_RF <- data.frame(Modelo = "Ridge", 
+                                 "lambda" = randomForest[["bestTune"]][["lambda"]], # cambiar por sus metricas
+                                 "alpha" = randomForest[["bestTune"]][["alpha"]],#
+                                 "FNR" = mean(randomForest[["results"]][["FNR"]]),
+                                 "FPR" = mean(randomForest[["results"]][["FPR"]]),
+                                 "FR" = mean(randomForest[["results"]][["FR"]])   )
+
+stargazer(metricas_HyperP_RF,type="text",summary=F,out = "views/RandomForest_Reg.txt")
+
+metricas_HyperP_RF%>%
+  kbl()%>%
+  kable_styling(full_width = T)
+metricas_HyperP<-rbind(metricas_HyperP,metricas_HyperP_RF)
+rm(control,tunegrid,randomForest) 
+
